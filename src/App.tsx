@@ -7,6 +7,7 @@ import LoadingSpinner from './components/LoadingSpinner'
 import ServerWakeupBanner from './components/ServerWakeupBanner'
 import { usePlanningStore } from './store/planningStore'
 import { employeeService } from './services/api'
+import { Employee } from './types'
 import './App.css'
 
 function App() {
@@ -14,18 +15,20 @@ function App() {
   const { selectedEmployeeId, setEmployees } = usePlanningStore()
 
   // Charger les employés au démarrage
-  const { data: employees, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<Employee[]>({
     queryKey: ['employees'],
-    queryFn: employeeService.getAll,
-    onError: () => {
-      // Afficher la bannière de réveil du serveur si la première requête échoue
+    queryFn: employeeService.getAll
+  })
+
+  // Gérer les données et erreurs
+  useEffect(() => {
+    if (error) {
       setShowWakeupBanner(true)
-    },
-    onSuccess: (data) => {
+    } else if (data) {
       setEmployees(data)
       setShowWakeupBanner(false)
     }
-  })
+  }, [data, error, setEmployees])
 
   // Masquer la bannière après 10 secondes
   useEffect(() => {

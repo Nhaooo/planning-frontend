@@ -7,7 +7,7 @@ interface WeekNotesCardProps {
   weekId: number
 }
 
-const WeekNotesCard: FC<WeekNotesCardProps> = ({ notes, weekId }) => {
+const WeekNotesCard: FC<WeekNotesCardProps> = ({ notes }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editedComments, setEditedComments] = useState(notes?.comments || '')
 

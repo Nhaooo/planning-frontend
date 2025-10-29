@@ -1,5 +1,5 @@
 import { FC } from 'react'
-import { Calendar, Save, Undo, Redo, Download, Copy } from 'lucide-react'
+import { Calendar, Undo, Redo, Download, Copy } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import EmployeeSelector from './EmployeeSelector'
 import WeekSelector from './WeekSelector'

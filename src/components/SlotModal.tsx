@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { X } from 'lucide-react'
-import { Slot, SlotFormData, CategoryCode } from '../types'
+import { Slot, SlotFormData } from '../types'
 import { minutesToTime, timeToMinutes } from '../utils/timeUtils'
 import { getAllCategories, DEFAULT_CATEGORY_LEGEND } from '../utils/categoryUtils'
 
@@ -41,7 +41,6 @@ const SlotModal: FC<SlotModalProps> = ({
     register,
     handleSubmit,
     reset,
-    setValue,
     watch,
     formState: { errors, isValid }
   } = useForm<SlotFormFields>({

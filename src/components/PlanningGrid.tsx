@@ -7,7 +7,7 @@ import TimeColumn from './TimeColumn'
 import DayColumn from './DayColumn'
 import SlotModal from './SlotModal'
 import LoadingSpinner from './LoadingSpinner'
-import { Slot, SlotFormData } from '../types'
+import { Slot, SlotFormData, WeekResponse } from '../types'
 
 const PlanningGrid: FC = () => {
   const {
@@ -32,7 +32,7 @@ const PlanningGrid: FC = () => {
   const weekDates = getWeekDates(mondayDate)
 
   // Charger les données de la semaine
-  const { data: weekData, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<WeekResponse[] | null>({
     queryKey: ['week', selectedEmployeeId, selectedWeekKind, selectedVacationPeriod, selectedWeekStart],
     queryFn: () => {
       if (!selectedEmployeeId) return null
@@ -44,13 +44,15 @@ const PlanningGrid: FC = () => {
         weekStart: selectedWeekStart
       })
     },
-    enabled: !!selectedEmployeeId,
-    onSuccess: (data) => {
-      if (data && data.length > 0) {
-        setCurrentWeek(data[0])
-      }
-    }
+    enabled: !!selectedEmployeeId
   })
+
+  // Gérer les données
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setCurrentWeek(data[0])
+    }
+  }, [data, setCurrentWeek])
 
   // Gestionnaire de clic sur une cellule vide pour créer un nouveau créneau
   const handleCellClick = (dayIndex: number, timeSlot: number) => {

@@ -20,7 +20,7 @@ const DayColumn: FC<DayColumnProps> = ({
 }) => {
   const [{ isOver }, drop] = useDrop({
     accept: 'slot',
-    drop: (item: any, monitor) => {
+    drop: (item: any) => {
       // TODO: Gérer le drop d'un créneau
       console.log('Dropped slot:', item)
     },

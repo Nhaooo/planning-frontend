@@ -141,7 +141,7 @@ export const getContrastColor = (backgroundColor: string): string => {
 export const getCategoryStyle = (
   category: CategoryCode,
   legend: CategoryLegend = DEFAULT_CATEGORY_LEGEND
-) => {
+): React.CSSProperties => {
   const backgroundColor = getCategoryColor(category, legend)
   const textColor = getContrastColor(backgroundColor)
   
@@ -150,6 +150,6 @@ export const getCategoryStyle = (
     borderLeftColor: backgroundColor,
     color: textColor,
     borderLeftWidth: '4px',
-    borderLeftStyle: 'solid'
+    borderLeftStyle: 'solid' as const
   }
 }
