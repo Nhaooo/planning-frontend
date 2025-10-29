@@ -64,8 +64,8 @@ export const usePlanningStore = create<PlanningState>()(
       },
       
       // Gestion Undo/Redo
-      pushToUndoStack: (state) => {
-        const { undoStack, redoStack } = get()
+      pushToUndoStack: (state: any) => {
+        const { undoStack } = get()
         const newUndoStack = [...undoStack, state].slice(-10) // Garder max 10 niveaux
         
         set({
@@ -111,7 +111,7 @@ export const usePlanningStore = create<PlanningState>()(
     {
       name: 'planning-store',
       // Ne pas persister les données sensibles
-      partialize: (state) => ({
+      partialize: (state: PlanningState) => ({
         selectedWeekKind: state.selectedWeekKind,
         selectedVacationPeriod: state.selectedVacationPeriod,
         selectedWeekStart: state.selectedWeekStart,
