@@ -1,0 +1,162 @@
+// Types pour l'API et l'application
+
+export interface Employee {
+  id: number
+  slug: string
+  fullname: string
+  active: boolean
+}
+
+export interface Slot {
+  id: number
+  week_id: number
+  day_index: number // 0=Monday, 6=Sunday
+  start_min: number // Minutes since 00:00
+  duration_min: number // Duration in minutes, multiple of 15
+  title: string
+  category: CategoryCode
+  comment?: string
+}
+
+export interface Week {
+  id: number
+  employee_id: number
+  kind_id: number
+  vacation_id?: number
+  week_start_date: string // ISO date string
+  meta: Record<string, any>
+}
+
+export interface Note {
+  id: number
+  week_id: number
+  hours_total?: number
+  comments?: string
+  last_edit_by?: string
+  last_edit_at: string
+}
+
+export interface WeekTotals {
+  per_day: number[] // Hours per day (7 days)
+  week_total: number
+  indetermine: number
+}
+
+export interface CategoryRepartition {
+  a: number // Administratif/gestion
+  p: number // Prestation/événement
+  e: number // École d'escalade
+  c: number // Groupes compétition
+  o: number // Ouverture
+  l: number // Loisir
+  m: number // Mise en place / Rangement
+  s: number // Santé Adulte/Enfant
+}
+
+export interface WeekResponse {
+  week: Week
+  slots: Slot[]
+  notes?: Note
+  totals: WeekTotals
+  repartition: CategoryRepartition
+}
+
+export type CategoryCode = 'a' | 'p' | 'e' | 'c' | 'o' | 'l' | 'm' | 's'
+
+export interface CategoryLegend {
+  [key: string]: {
+    label: string
+    color: string
+  }
+}
+
+export type WeekKind = 'type' | 'current' | 'next' | 'vacation'
+export type VacationPeriod = 'Toussaint' | 'Noel' | 'Paques' | 'Ete'
+
+// Types pour les formulaires
+export interface SlotFormData {
+  title: string
+  category: CategoryCode
+  comment?: string
+  day_index: number
+  start_min: number
+  duration_min: number
+}
+
+export interface WeekFilters {
+  employeeId?: number
+  kind?: WeekKind
+  vacation?: VacationPeriod
+  weekStart?: string
+}
+
+// Types pour le store Zustand
+export interface PlanningState {
+  // Données
+  employees: Employee[]
+  currentWeek?: WeekResponse
+  legend: CategoryLegend
+  
+  // Sélections
+  selectedEmployeeId?: number
+  selectedWeekKind: WeekKind
+  selectedVacationPeriod?: VacationPeriod
+  selectedWeekStart: string
+  
+  // UI State
+  isLoading: boolean
+  saveStatus: 'idle' | 'saving' | 'saved' | 'error'
+  undoStack: any[]
+  redoStack: any[]
+  
+  // Actions
+  setEmployees: (employees: Employee[]) => void
+  setSelectedEmployee: (employeeId: number) => void
+  setSelectedWeekKind: (kind: WeekKind) => void
+  setSelectedVacationPeriod: (period?: VacationPeriod) => void
+  setSelectedWeekStart: (date: string) => void
+  setCurrentWeek: (week: WeekResponse) => void
+  setLegend: (legend: CategoryLegend) => void
+  setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void
+  
+  // Undo/Redo
+  pushToUndoStack: (state: any) => void
+  undo: () => void
+  redo: () => void
+  clearUndoRedo: () => void
+}
+
+// Types pour les utilitaires
+export interface TimeSlot {
+  hour: number
+  minute: number
+  label: string
+  totalMinutes: number
+}
+
+export interface DragItem {
+  type: string
+  slot?: Slot
+  newSlot?: Partial<SlotFormData>
+}
+
+// Types pour les erreurs API
+export interface ApiError {
+  detail: string
+  status?: number
+}
+
+// Types pour les réponses API
+export interface ApiResponse<T> {
+  data?: T
+  error?: ApiError
+}
+
+// Configuration de l'application
+export interface AppConfig {
+  apiBaseUrl: string
+  defaultOpeningHour: number
+  defaultClosingHour: number
+  autoSaveDelay: number
+  maxUndoLevels: number
+}

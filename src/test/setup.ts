@@ -1,0 +1,11 @@
+import '@testing-library/jest-dom'
+
+// Mock des variables d'environnement
+Object.defineProperty(import.meta, 'env', {
+  value: {
+    VITE_API_BASE_URL: 'http://localhost:8000/api/v1',
+    VITE_APP_TITLE: 'Planning Hebdomadaire',
+    VITE_DEFAULT_OPENING_HOUR: '9',
+    VITE_DEFAULT_CLOSING_HOUR: '22'
+  }
+})
