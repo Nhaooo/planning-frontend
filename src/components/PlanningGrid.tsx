@@ -208,10 +208,14 @@ const PlanningGrid: React.FC = () => {
         updateSlotMutation.mutate({
           slotId: draggedData.id,
           slotData: {
+            employee_id: selectedEmployeeId,
             date: date,
             day_of_week: dayIndex,
             start_time: startTime,
-            end_time: endTime
+            end_time: endTime,
+            title: draggedData.title,
+            category: draggedData.category,
+            comment: draggedData.comment
           }
         })
       } else {
@@ -487,7 +491,7 @@ const PlanningGrid: React.FC = () => {
                         style={{
                           ...getSlotStyle(slot.category),
                           height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
-                          minHeight: '56px'
+                          minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
                         }}
                         draggable
                         onDragStart={(e) => handleSlotDragStart(e, slot)}

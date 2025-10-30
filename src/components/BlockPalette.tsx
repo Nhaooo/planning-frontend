@@ -53,17 +53,17 @@ const BLOCK_TEMPLATES: BlockTemplate[] = [
     description: 'Activité loisir'
   },
   {
-    id: 'rangement-30min',
+    id: 'rangement-1h',
     title: 'Rangement',
     category: 'm',
-    defaultDuration: 30,
+    defaultDuration: 60,
     description: 'Mise en place/rangement'
   },
   {
-    id: 'sante-45min',
+    id: 'sante-1h',
     title: 'Santé',
     category: 's',
-    defaultDuration: 45,
+    defaultDuration: 60,
     description: 'Santé adulte/enfant'
   }
 ]
