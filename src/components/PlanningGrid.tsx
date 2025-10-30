@@ -61,13 +61,35 @@ const PlanningGrid: FC = () => {
       }
       
       console.log('📊 Chargement semaine pour employé:', selectedEmployeeId)
-      const result = await weekService.getWeeks({
+      console.log('📊 Paramètres:', { kind: selectedWeekKind, vacation: selectedVacationPeriod, weekStart: selectedWeekStart })
+      
+      let result = await weekService.getWeeks({
         employeeId: selectedEmployeeId,
         kind: selectedWeekKind,
         vacation: selectedVacationPeriod,
         weekStart: selectedWeekStart
       })
+      
       console.log('📊 Données semaine reçues:', result)
+      
+      // Si aucune semaine trouvée, en créer une automatiquement
+      if (!result || result.length === 0) {
+        console.log('🆕 Aucune semaine trouvée, création automatique...')
+        try {
+          const newWeek = await weekService.createWeek(
+            selectedEmployeeId,
+            selectedWeekKind,
+            selectedWeekStart,
+            selectedVacationPeriod
+          )
+          console.log('✅ Semaine créée automatiquement:', newWeek)
+          result = [newWeek]
+        } catch (error) {
+          console.error('❌ Erreur création semaine automatique:', error)
+          throw error
+        }
+      }
+      
       return result
     },
     enabled: !!selectedEmployeeId
@@ -238,6 +260,9 @@ const PlanningGrid: FC = () => {
   const handleModalSave = useCallback(async (data: SlotFormData) => {
     console.log('💾 === DÉBUT SAUVEGARDE ===')
     console.log('📝 Données reçues du modal:', data)
+    console.log('📊 État actuel - currentWeek:', currentWeek)
+    console.log('📊 État actuel - selectedEmployeeId:', selectedEmployeeId)
+    console.log('📊 État actuel - selectedWeekKind:', selectedWeekKind)
 
     try {
       if (selectedSlot) {
@@ -250,14 +275,25 @@ const PlanningGrid: FC = () => {
       } else {
         // Création d'un nouveau créneau
         console.log('🆕 Mode création')
-        console.log('📊 Semaine courante disponible:', !!currentWeek)
         
+        // Vérifier si on a une semaine courante
         if (!currentWeek) {
-          console.error('❌ Pas de semaine courante pour création')
-          alert('Erreur: Aucune semaine sélectionnée')
-          return
+          console.log('⚠️ Pas de semaine courante, tentative de rechargement...')
+          
+          // Forcer le rechargement des données
+          await refetch()
+          
+          // Attendre un peu que les données se mettent à jour
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          if (!currentWeek) {
+            console.error('❌ Toujours pas de semaine après rechargement')
+            alert('Erreur: Impossible de créer la semaine. Veuillez réessayer.')
+            return
+          }
         }
 
+        console.log('✅ Semaine disponible pour création:', currentWeek.week.id)
         await createSlotMutation.mutateAsync(data)
       }
       
@@ -265,8 +301,9 @@ const PlanningGrid: FC = () => {
       console.log('💾 === SAUVEGARDE TERMINÉE ===')
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde:', error)
+      alert(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
     }
-  }, [selectedSlot, currentWeek, updateSlotMutation, createSlotMutation, handleModalClose])
+  }, [selectedSlot, currentWeek, selectedEmployeeId, selectedWeekKind, updateSlotMutation, createSlotMutation, handleModalClose, refetch])
 
   // Fonctions utilitaires
   const getSlotPosition = useCallback((startMin: number, durationMin: number) => {

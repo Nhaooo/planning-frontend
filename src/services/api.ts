@@ -127,6 +127,24 @@ export const weekService = {
     return api.request(`/weeks/${id}`)
   },
 
+  async createWeek(employeeId: number, kind: string, weekStart: string, vacation?: string): Promise<WeekResponse> {
+    const api = new ApiService()
+    const weekData: any = {
+      employee_id: employeeId,
+      kind,
+      week_start_date: weekStart
+    }
+    
+    if (vacation) {
+      weekData.vacation = vacation
+    }
+    
+    return api.request('/weeks', {
+      method: 'POST',
+      body: JSON.stringify(weekData),
+    })
+  },
+
   async updateWeek(id: number, data: any): Promise<WeekResponse> {
     const api = new ApiService()
     return api.request(`/weeks/${id}`, {
