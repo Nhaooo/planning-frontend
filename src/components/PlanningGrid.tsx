@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { simplePlanningApi, SimpleSlot, SimpleSlotUpdate } from '../services/simplePlanningApi'
 import SlotModal from './SlotModal'
+import { getCategoryColors, getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i) // 7h à 20h
@@ -404,15 +405,22 @@ const PlanningGrid: React.FC = () => {
                     key={`${hour}-${dayIndex}`}
                     className={`
                       relative h-16 border-b border-r cursor-pointer transition-colors
-                      ${slot ? 'bg-blue-100' : 'hover:bg-gray-50'}
+                      ${slot ? '' : 'hover:bg-gray-50'}
                     `}
+                    style={slot ? getCellBackgroundStyle(slot.category) : {}}
                     onClick={() => slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)}
                   >
                     {slot ? (
-                      <div className="absolute inset-1 bg-blue-500 text-white rounded p-1 text-xs overflow-hidden">
+                      <div 
+                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden"
+                        style={getSlotStyle(slot.category)}
+                      >
                         <div className="font-medium truncate">{slot.title}</div>
-                        <div className="text-blue-100">
+                        <div className="opacity-80">
                           {minutesToTime(slot.start_time)} - {minutesToTime(slot.end_time)}
+                        </div>
+                        <div className="text-xs opacity-70 mt-1">
+                          {getCategoryColors(slot.category).name}
                         </div>
                         <button
                           onClick={(e) => handleDeleteSlot(slot.id, e)}

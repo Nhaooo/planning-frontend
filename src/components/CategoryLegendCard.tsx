@@ -1,9 +1,13 @@
 import { FC } from 'react'
 import { Palette } from 'lucide-react'
-import { getAllCategories, DEFAULT_CATEGORY_LEGEND } from '../utils/categoryUtils'
+import { CATEGORY_COLORS } from '../utils/categoryColors'
 
 const CategoryLegendCard: FC = () => {
-  const categories = getAllCategories(DEFAULT_CATEGORY_LEGEND)
+  const categories = Object.entries(CATEGORY_COLORS).map(([code, config]) => ({
+    code,
+    label: config.name,
+    color: config.color
+  }))
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

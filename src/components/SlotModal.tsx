@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { SimpleSlot } from '../services/simplePlanningApi'
+import { CATEGORY_COLORS } from '../utils/categoryColors'
 
 interface SlotModalProps {
   isOpen: boolean
@@ -19,16 +20,11 @@ interface SlotFormData {
   endTime: string
 }
 
-const CATEGORIES = [
-  { code: 'a', label: 'Administratif/gestion', color: '#3B82F6' },
-  { code: 'p', label: 'Prestation/événement', color: '#10B981' },
-  { code: 'e', label: 'École d\'escalade', color: '#F59E0B' },
-  { code: 'c', label: 'Groupes compétition', color: '#EF4444' },
-  { code: 'o', label: 'Ouverture', color: '#8B5CF6' },
-  { code: 'l', label: 'Loisir', color: '#06B6D4' },
-  { code: 'm', label: 'Mise en place / Rangement', color: '#6B7280' },
-  { code: 's', label: 'Santé Adulte/Enfant', color: '#EC4899' }
-]
+const CATEGORIES = Object.entries(CATEGORY_COLORS).map(([code, config]) => ({
+  code,
+  label: config.name,
+  color: config.color
+}))
 
 const minutesToTime = (minutes: number): string => {
   const hours = Math.floor(minutes / 60)
