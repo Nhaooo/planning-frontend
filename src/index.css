@@ -2,99 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Animations drag & drop */
+/* Styles drag & drop simples */
 .dragging {
-  opacity: 0.5;
-  transform: rotate(5deg) scale(1.05);
+  opacity: 0.7;
+  transform: scale(1.05);
   transition: all 0.2s ease;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
 
-.drop-zone {
-  position: relative;
-}
-
-.drop-zone:hover::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
-  border: 2px dashed rgba(59, 130, 246, 0.3);
-  border-radius: 4px;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* Animation pour les blocs créés */
-.slot-created {
-  animation: bounceIn 0.6s ease-out;
-}
-
-@keyframes bounceIn {
-  0% {
-    transform: scale(0.3);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  70% {
-    transform: scale(0.9);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Curseur de redimensionnement */
-.resize-handle {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 2px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.resize-handle:hover {
-  background: rgba(255, 255, 255, 1);
-  border-color: rgba(0, 0, 0, 0.4);
-}
-
-.resize-handle-vertical {
-  width: 100%;
-  height: 4px;
-  cursor: ns-resize;
-}
-
-.resize-handle-horizontal {
-  width: 4px;
-  height: 100%;
-  cursor: ew-resize;
-}
-
-.resize-handle-bottom {
-  bottom: -2px;
-  left: 0;
-}
-
-.resize-handle-right {
-  right: -2px;
-  top: 0;
-}
-
-/* Afficher les handles au survol */
-.slot-container:hover .resize-handle {
-  opacity: 1;
+.drag-over {
+  background-color: rgba(59, 130, 246, 0.1) !important;
 }
 
 @layer base {

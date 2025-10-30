@@ -12,11 +12,17 @@ const Sidebar: FC = () => {
   if (!currentWeek) {
     return (
       <div className="space-y-6">
+        {/* Palette de blocs drag & drop - toujours visible */}
+        <BlockPalette />
+        
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <p className="text-gray-500 text-center">
             Aucune donnée de planning disponible
           </p>
         </div>
+        
+        {/* Légende des catégories - toujours visible */}
+        <CategoryLegendCard />
       </div>
     )
   }

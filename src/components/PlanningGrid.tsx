@@ -48,8 +48,7 @@ const PlanningGrid: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<SimpleSlot | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newSlotData, setNewSlotData] = useState<{ date: string; dayOfWeek: number; startTime: number } | null>(null)
-  const [, setIsResizing] = useState(false)
-  const [resizeData, setResizeData] = useState<{ slot: SimpleSlot; direction: 'vertical' | 'horizontal'; startY: number; startX: number } | null>(null)
+
 
   // Calculer la semaine à afficher selon le type sélectionné
   const getDisplayWeekStart = () => {
@@ -173,10 +172,23 @@ const PlanningGrid: React.FC = () => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'copy'
+    
+    // Ajouter une classe pour le feedback visuel
+    const target = e.currentTarget as HTMLElement
+    target.classList.add('drag-over')
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    const target = e.currentTarget as HTMLElement
+    target.classList.remove('drag-over')
   }
 
   const handleDrop = (e: React.DragEvent, dayIndex: number, hour: number) => {
     e.preventDefault()
+    
+    // Nettoyer le feedback visuel
+    const target = e.currentTarget as HTMLElement
+    target.classList.remove('drag-over')
     
     if (!selectedEmployeeId) return
     
@@ -202,62 +214,9 @@ const PlanningGrid: React.FC = () => {
     } catch (error) {
       console.error('Erreur lors du drop:', error)
     }
-   }
+    }
 
-   // Gestionnaires de redimensionnement
-   const handleResizeStart = (e: React.MouseEvent, slot: SimpleSlot, direction: 'vertical' | 'horizontal') => {
-     e.preventDefault()
-     e.stopPropagation()
-     
-     setIsResizing(true)
-     setResizeData({
-       slot,
-       direction,
-       startY: e.clientY,
-       startX: e.clientX
-     })
-     
-     document.addEventListener('mousemove', handleResizeMove)
-     document.addEventListener('mouseup', handleResizeEnd)
-   }
-
-   const handleResizeMove = (e: MouseEvent) => {
-     if (!resizeData) return
-     
-     const { slot, direction, startY, startX } = resizeData
-     
-     if (direction === 'vertical') {
-        const deltaY = e.clientY - startY
-        const deltaHours = Math.round(deltaY / 64) // 64px par heure
-        const newDuration = Math.max(15, (slot.end_time - slot.start_time) + (deltaHours * 60)) // Minimum 15 minutes
-        
-        // Mettre à jour visuellement (on pourrait ajouter un état temporaire ici)
-        console.log('Redimensionnement vertical:', { deltaHours, newDuration })
-      } else {
-        const deltaX = e.clientX - startX
-        const deltaDays = Math.round(deltaX / 200) // Approximation pour les jours
-        
-        // Logique pour étaler sur plusieurs jours
-        console.log('Redimensionnement horizontal:', { deltaDays })
-      }
-   }
-
-   const handleResizeEnd = () => {
-     if (!resizeData) return
-     
-     // Ici on ferait l'appel API pour sauvegarder les changements
-     // Pour l'instant, on ouvre juste le modal d'édition
-     setSelectedSlot(resizeData.slot)
-     setIsModalOpen(true)
-     
-     setIsResizing(false)
-     setResizeData(null)
-     
-     document.removeEventListener('mousemove', handleResizeMove)
-     document.removeEventListener('mouseup', handleResizeEnd)
-   }
-
-   const handleSlotClick = (slot: SimpleSlot) => {
+    const handleSlotClick = (slot: SimpleSlot) => {
     console.log('🎯 Clic créneau:', slot)
     setSelectedSlot(slot)
     setNewSlotData(null)
@@ -463,16 +422,17 @@ const PlanningGrid: React.FC = () => {
                     key={`${hour}-${dayIndex}`}
                     className={`
                       relative h-16 border-b border-r cursor-pointer transition-colors
-                      ${slot ? '' : 'hover:bg-gray-50 drop-zone'}
+                      ${slot ? '' : 'hover:bg-gray-50'}
                     `}
                     style={slot ? getCellBackgroundStyle(slot.category) : {}}
                     onClick={() => slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)}
                     onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, dayIndex, hour)}
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 slot-container"
+                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10"
                         style={{
                           ...getSlotStyle(slot.category),
                           height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
@@ -494,16 +454,6 @@ const PlanningGrid: React.FC = () => {
                         >
                           <Trash2 size={10} />
                         </button>
-                        
-                        {/* Handles de redimensionnement */}
-                        <div 
-                          className="resize-handle resize-handle-vertical resize-handle-bottom"
-                          onMouseDown={(e) => handleResizeStart(e, slot, 'vertical')}
-                        ></div>
-                        <div 
-                          className="resize-handle resize-handle-horizontal resize-handle-right"
-                          onMouseDown={(e) => handleResizeStart(e, slot, 'horizontal')}
-                        ></div>
                       </div>
                     ) : !slot ? (
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
