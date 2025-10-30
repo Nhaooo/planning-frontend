@@ -178,15 +178,7 @@ const PlanningGrid: React.FC = () => {
   // État pour tracker le type de drag en cours
   const [dragType, setDragType] = useState<'palette' | 'existing' | null>(null)
   
-  // État pour l'étirement
-  const [isResizing, setIsResizing] = useState(false)
-  const [resizeData, setResizeData] = useState<{
-    slot: SimpleSlot
-    direction: 'vertical' | 'horizontal'
-    startX: number
-    startY: number
-    originalDuration: number
-  } | null>(null)
+
 
   // Gestionnaires drag & drop
   const handleDragOver = (e: React.DragEvent) => {
@@ -345,72 +337,56 @@ const PlanningGrid: React.FC = () => {
     target.classList.remove('dragging')
   }
 
-  // Gestionnaires d'étirement
-  const handleResizeStart = (e: React.MouseEvent, slot: SimpleSlot, direction: 'vertical' | 'horizontal') => {
+  // Gestionnaires d'étirement simplifiés
+  const handleResizeClick = (e: React.MouseEvent, slot: SimpleSlot, direction: 'vertical' | 'horizontal') => {
     e.preventDefault()
     e.stopPropagation()
     
-    console.log('🎯 Début étirement:', { slot, direction })
-    
-    setIsResizing(true)
-    setResizeData({
-      slot,
-      direction,
-      startX: e.clientX,
-      startY: e.clientY,
-      originalDuration: slot.end_time - slot.start_time
-    })
-    
-    document.addEventListener('mousemove', handleResizeMove)
-    document.addEventListener('mouseup', handleResizeEnd)
-  }
-
-  const handleResizeMove = (e: MouseEvent) => {
-    if (!resizeData) return
-    
-    const { direction, startX, startY, originalDuration } = resizeData
+    console.log('🎯 Clic étirement:', { slot, direction })
     
     if (direction === 'vertical') {
-      // Étirement vertical (durée)
-      const deltaY = e.clientY - startY
-      const deltaHours = Math.round(deltaY / 64) // 64px par heure
-      const newDuration = Math.max(60, originalDuration + (deltaHours * 60)) // Minimum 1h
+      // Étirement vertical : proposer des durées prédéfinies
+      const currentDuration = slot.end_time - slot.start_time
       
-      console.log('📏 Étirement vertical:', { deltaY, deltaHours, newDuration })
+      const newDuration = prompt(
+        `Durée actuelle: ${currentDuration}min\nNouvelle durée (en minutes):`,
+        currentDuration.toString()
+      )
       
-      // Ici on pourrait mettre à jour visuellement en temps réel
+      if (newDuration && !isNaN(Number(newDuration))) {
+        const duration = Math.max(60, Number(newDuration)) // Minimum 1h
+        updateSlotMutation.mutate({
+          slotId: slot.id,
+          slotData: {
+            end_time: slot.start_time + duration
+          }
+        })
+      }
     } else {
-      // Étirement horizontal (jours)
-      const deltaX = e.clientX - startX
-      const deltaDays = Math.round(deltaX / 200) // Approximation largeur jour
+      // Étirement horizontal : demander le nombre de jours
+      const days = prompt('Sur combien de jours étaler ce créneau ?', '2')
       
-      console.log('📏 Étirement horizontal:', { deltaX, deltaDays })
+      if (days && !isNaN(Number(days)) && Number(days) > 1) {
+        const numDays = Math.min(7, Number(days)) // Maximum 7 jours
+        
+        // Créer des créneaux sur les jours suivants
+        for (let i = 1; i < numDays; i++) {
+          const newDate = new Date(slot.date)
+          newDate.setDate(newDate.getDate() + i)
+          
+          createSlotMutation.mutate({
+            employee_id: Number(selectedEmployeeId),
+            date: newDate.toISOString().split('T')[0],
+            day_of_week: (slot.day_of_week + i) % 7,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            title: slot.title,
+            category: slot.category,
+            comment: slot.comment || ''
+          })
+        }
+      }
     }
-  }
-
-  const handleResizeEnd = () => {
-    if (!resizeData) return
-    
-    const { slot, direction } = resizeData
-    
-    console.log('✅ Fin étirement, application des changements...')
-    
-    if (direction === 'vertical') {
-      // Pour l'instant, on ouvre le modal d'édition pour ajuster la durée
-      setSelectedSlot(slot)
-      setIsModalOpen(true)
-    } else {
-      // Étirement horizontal : créer des créneaux sur plusieurs jours
-      // Pour l'instant, on ouvre juste le modal d'édition
-      setSelectedSlot(slot)
-      setIsModalOpen(true)
-    }
-    
-    setIsResizing(false)
-    setResizeData(null)
-    
-    document.removeEventListener('mousemove', handleResizeMove)
-    document.removeEventListener('mouseup', handleResizeEnd)
   }
 
      const handleSlotClick = (slot: SimpleSlot) => {
@@ -636,13 +612,13 @@ const PlanningGrid: React.FC = () => {
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${isResizing ? 'resizing' : ''}`}
+                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container"
                         style={{
                           ...getSlotStyle(slot.category),
                           height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
                           minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
                         }}
-                        draggable={!isResizing}
+                        draggable
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
                         onDragEnd={handleSlotDragEnd}
                       >
@@ -665,13 +641,13 @@ const PlanningGrid: React.FC = () => {
                         {/* Handles d'étirement */}
                         <div 
                           className="resize-handle resize-handle-vertical resize-handle-bottom"
-                          onMouseDown={(e) => handleResizeStart(e, slot, 'vertical')}
-                          title="Étirer verticalement (durée)"
+                          onClick={(e) => handleResizeClick(e, slot, 'vertical')}
+                          title="Cliquer pour changer la durée"
                         ></div>
                         <div 
                           className="resize-handle resize-handle-horizontal resize-handle-right"
-                          onMouseDown={(e) => handleResizeStart(e, slot, 'horizontal')}
-                          title="Étirer horizontalement (jours)"
+                          onClick={(e) => handleResizeClick(e, slot, 'horizontal')}
+                          title="Cliquer pour étaler sur plusieurs jours"
                         ></div>
                       </div>
                     ) : !slot ? (
