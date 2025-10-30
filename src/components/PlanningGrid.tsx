@@ -51,7 +51,7 @@ const PlanningGrid: FC = () => {
   const mondayDate = getMondayOfWeek(selectedWeekStart)
   const weekDates = getWeekDates(mondayDate)
 
-  // Charger les données de la semaine
+  // Charger les données de la semaine - VERSION SIMPLIFIÉE
   const { data, isLoading, error, refetch } = useQuery<WeekResponse[] | null>({
     queryKey: ['week', selectedEmployeeId, selectedWeekKind, selectedVacationPeriod, selectedWeekStart],
     queryFn: async () => {
@@ -63,36 +63,31 @@ const PlanningGrid: FC = () => {
       console.log('📊 Chargement semaine pour employé:', selectedEmployeeId)
       console.log('📊 Paramètres:', { kind: selectedWeekKind, vacation: selectedVacationPeriod, weekStart: selectedWeekStart })
       
-      let result = await weekService.getWeeks({
-        employeeId: selectedEmployeeId,
-        kind: selectedWeekKind,
-        vacation: selectedVacationPeriod,
-        weekStart: selectedWeekStart
-      })
-      
-      console.log('📊 Données semaine reçues:', result)
-      
-      // Si aucune semaine trouvée, en créer une automatiquement
-      if (!result || result.length === 0) {
-        console.log('🆕 Aucune semaine trouvée, création automatique...')
-        try {
-          const newWeek = await weekService.createWeek(
-            selectedEmployeeId,
-            selectedWeekKind,
-            selectedWeekStart,
-            selectedVacationPeriod
-          )
-          console.log('✅ Semaine créée automatiquement:', newWeek)
-          result = [newWeek]
-        } catch (error) {
-          console.error('❌ Erreur création semaine automatique:', error)
-          throw error
+      try {
+        const result = await weekService.getWeeks({
+          employeeId: selectedEmployeeId,
+          kind: selectedWeekKind,
+          vacation: selectedVacationPeriod,
+          weekStart: selectedWeekStart
+        })
+        
+        console.log('📊 Données semaine reçues:', result)
+        
+        // Si aucune semaine trouvée, retourner un tableau vide pour l'instant
+        if (!result || result.length === 0) {
+          console.log('⚠️ Aucune semaine trouvée, retour tableau vide')
+          return []
         }
+        
+        return result
+      } catch (error) {
+        console.error('❌ Erreur chargement semaine:', error)
+        // Retourner un tableau vide au lieu de throw pour éviter l'erreur
+        return []
       }
-      
-      return result
     },
-    enabled: !!selectedEmployeeId
+    enabled: !!selectedEmployeeId,
+    retry: 1 // Réessayer seulement 1 fois
   })
 
   // Mutation pour créer un créneau - VERSION SIMPLE ET ROBUSTE
@@ -188,11 +183,39 @@ const PlanningGrid: FC = () => {
     }
   })
 
+  // Mutation pour créer une semaine
+  const createWeekMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployeeId) {
+        throw new Error('Aucun employé sélectionné')
+      }
+      
+      console.log('🆕 Création manuelle de semaine...')
+      return await weekService.createWeek(
+        selectedEmployeeId,
+        selectedWeekKind,
+        selectedWeekStart,
+        selectedVacationPeriod
+      )
+    },
+    onSuccess: (newWeek) => {
+      console.log('✅ Semaine créée manuellement:', newWeek)
+      setCurrentWeek(newWeek)
+      refetch()
+    },
+    onError: (error) => {
+      console.error('❌ Erreur création semaine manuelle:', error)
+    }
+  })
+
   // Gérer les données
   useEffect(() => {
     if (data && data.length > 0) {
       console.log('📊 Mise à jour semaine courante:', data[0])
       setCurrentWeek(data[0])
+    } else if (data && data.length === 0) {
+      console.log('📊 Aucune semaine trouvée, currentWeek = undefined')
+      setCurrentWeek(undefined)
     }
   }, [data, setCurrentWeek])
 
@@ -278,16 +301,22 @@ const PlanningGrid: FC = () => {
         
         // Vérifier si on a une semaine courante
         if (!currentWeek) {
-          console.log('⚠️ Pas de semaine courante, tentative de rechargement...')
+          console.log('⚠️ Pas de semaine courante, création automatique...')
           
-          // Forcer le rechargement des données
-          await refetch()
-          
-          // Attendre un peu que les données se mettent à jour
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          if (!currentWeek) {
-            console.error('❌ Toujours pas de semaine après rechargement')
+          try {
+            // Créer une semaine automatiquement
+            await createWeekMutation.mutateAsync()
+            
+            // Attendre un peu que les données se mettent à jour
+            await new Promise(resolve => setTimeout(resolve, 500))
+            
+            if (!currentWeek) {
+              console.error('❌ Toujours pas de semaine après création')
+              alert('Erreur: Impossible de créer la semaine. Veuillez réessayer.')
+              return
+            }
+          } catch (error) {
+            console.error('❌ Erreur création semaine:', error)
             alert('Erreur: Impossible de créer la semaine. Veuillez réessayer.')
             return
           }
@@ -303,7 +332,7 @@ const PlanningGrid: FC = () => {
       console.error('❌ Erreur lors de la sauvegarde:', error)
       alert(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
     }
-  }, [selectedSlot, currentWeek, selectedEmployeeId, selectedWeekKind, updateSlotMutation, createSlotMutation, handleModalClose, refetch])
+  }, [selectedSlot, currentWeek, selectedEmployeeId, selectedWeekKind, updateSlotMutation, createSlotMutation, createWeekMutation, handleModalClose, refetch])
 
   // Fonctions utilitaires
   const getSlotPosition = useCallback((startMin: number, durationMin: number) => {
@@ -355,6 +384,29 @@ const PlanningGrid: FC = () => {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Sélectionnez un employé pour afficher le planning</p>
+      </div>
+    )
+  }
+
+  // Si pas de semaine courante, afficher un bouton pour en créer une
+  if (!currentWeek && !isLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Aucune semaine de planning trouvée
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Créez une nouvelle semaine de planning pour commencer à ajouter des créneaux.
+          </p>
+          <button
+            onClick={() => createWeekMutation.mutate()}
+            disabled={createWeekMutation.isPending}
+            className="btn-primary"
+          >
+            {createWeekMutation.isPending ? 'Création...' : 'Créer une semaine de planning'}
+          </button>
+        </div>
       </div>
     )
   }
