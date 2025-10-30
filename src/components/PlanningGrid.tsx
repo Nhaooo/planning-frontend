@@ -233,28 +233,35 @@ const PlanningGrid: React.FC = () => {
         
         console.log('📝 Données de mise à jour:', updateData)
         
-        // Solution alternative : supprimer l'ancien et créer un nouveau
-        // Cela évite les problèmes potentiels avec l'API PUT
-        console.log('🔄 Suppression ancien créneau et création nouveau...')
+        // Solution optimisée : créer d'abord (duplication), supprimer après
+        // Effet visuel instantané : le créneau apparaît immédiatement à la nouvelle position
+        console.log('🔄 Duplication instantanée puis suppression...')
         
-        // D'abord supprimer l'ancien créneau
-        deleteSlotMutation.mutate(draggedData.id, {
+        // D'abord créer le nouveau créneau (duplication instantanée)
+        createSlotMutation.mutate({
+          employee_id: Number(selectedEmployeeId),
+          date: date,
+          day_of_week: dayIndex,
+          start_time: startTime,
+          end_time: endTime,
+          title: draggedData.title,
+          category: draggedData.category,
+          comment: draggedData.comment || ''
+        }, {
           onSuccess: () => {
-            console.log('✅ Ancien créneau supprimé, création du nouveau...')
-            // Puis créer le nouveau créneau
-            createSlotMutation.mutate({
-              employee_id: Number(selectedEmployeeId),
-              date: date,
-              day_of_week: dayIndex,
-              start_time: startTime,
-              end_time: endTime,
-              title: draggedData.title,
-              category: draggedData.category,
-              comment: draggedData.comment || ''
-            })
+            console.log('✅ Nouveau créneau créé, suppression de l\'ancien...')
+            // Puis supprimer l'ancien créneau avec un petit délai pour l'effet visuel
+            setTimeout(() => {
+              deleteSlotMutation.mutate(draggedData.id, {
+                onError: (error) => {
+                  console.error('❌ Erreur suppression ancien créneau:', error)
+                  // Pas d'alerte ici car le nouveau créneau est déjà créé
+                }
+              })
+            }, 100) // 100ms de délai pour l'effet visuel
           },
           onError: (error) => {
-            console.error('❌ Erreur suppression ancien créneau:', error)
+            console.error('❌ Erreur création nouveau créneau:', error)
             alert('Erreur lors du déplacement du créneau')
           }
         })
