@@ -1,122 +1,166 @@
 import { create } from 'zustand'
-import { devtools } from 'zustand/middleware'
-import dayjs from 'dayjs'
-import { PlanningState } from '../types'
+import { persist } from 'zustand/middleware'
 
-const getMonday = (date: Date = new Date()) => {
+// Types ultra-simples
+export interface SimpleSlot {
+  id: string
+  employeeId: number
+  day: number // 0-6 (Lundi-Dimanche)
+  startHour: number // 9-22
+  startMinute: number // 0, 15, 30, 45
+  durationMinutes: number // 15, 30, 45, 60, etc.
+  title: string
+  category: string
+  comment?: string
+  color: string
+}
+
+export interface SimpleEmployee {
+  id: number
+  name: string
+  active: boolean
+}
+
+interface PlanningState {
+  // Données
+  employees: SimpleEmployee[]
+  slots: SimpleSlot[]
+  
+  // État UI
+  selectedEmployeeId: number | null
+  selectedWeek: string // Format YYYY-MM-DD (lundi)
+  
+  // Actions
+  setSelectedEmployee: (id: number | null) => void
+  setSelectedWeek: (week: string) => void
+  
+  // Gestion employés
+  addEmployee: (name: string) => void
+  removeEmployee: (id: number) => void
+  
+  // Gestion créneaux
+  addSlot: (slot: Omit<SimpleSlot, 'id' | 'color'>) => void
+  updateSlot: (id: string, updates: Partial<SimpleSlot>) => void
+  removeSlot: (id: string) => void
+  getSlotsForEmployee: (employeeId: number, week: string) => SimpleSlot[]
+  
+  // Utilitaires
+  initializeDefaultData: () => void
+}
+
+// Couleurs par catégorie
+const CATEGORY_COLORS: Record<string, string> = {
+  'admin': '#3B82F6', // Bleu
+  'prestation': '#10B981', // Vert
+  'ecole': '#F59E0B', // Orange
+  'competition': '#EF4444', // Rouge
+  'ouverture': '#8B5CF6', // Violet
+  'loisir': '#06B6D4', // Cyan
+  'rangement': '#6B7280', // Gris
+  'sante': '#EC4899' // Rose
+}
+
+// Fonction pour générer un ID unique
+const generateId = () => `slot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+// Fonction pour obtenir le lundi d'une semaine
+const getMondayOfWeek = (date: Date = new Date()): string => {
   const d = new Date(date)
   const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Ajuster pour que lundi soit le premier jour
-  return new Date(d.setDate(diff))
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  d.setDate(diff)
+  return d.toISOString().split('T')[0]
 }
 
 export const usePlanningStore = create<PlanningState>()(
-  devtools(
+  persist(
     (set, get) => ({
       // État initial
       employees: [],
-      currentWeek: undefined,
-      legend: {},
+      slots: [],
+      selectedEmployeeId: null,
+      selectedWeek: getMondayOfWeek(),
       
-      selectedEmployeeId: undefined,
-      selectedWeekKind: 'current',
-      selectedVacationPeriod: undefined,
-      selectedWeekStart: dayjs(getMonday()).format('YYYY-MM-DD'),
+      // Actions UI
+      setSelectedEmployee: (id) => set({ selectedEmployeeId: id }),
+      setSelectedWeek: (week) => set({ selectedWeek: week }),
       
-      isLoading: false,
-      saveStatus: 'idle',
-      undoStack: [],
-      redoStack: [],
-      
-      // Actions de base
-      setEmployees: (employees) => set({ employees }),
-      
-      setSelectedEmployee: (employeeId) => set({ 
-        selectedEmployeeId: employeeId,
-        currentWeek: undefined // Reset la semaine courante
-      }),
-      
-      setSelectedWeekKind: (kind) => set({ 
-        selectedWeekKind: kind,
-        selectedVacationPeriod: kind === 'vacation' ? get().selectedVacationPeriod || 'Toussaint' : undefined
-      }),
-      
-      setSelectedVacationPeriod: (period) => set({ selectedVacationPeriod: period }),
-      
-      setSelectedWeekStart: (date) => set({ selectedWeekStart: date }),
-      
-      setCurrentWeek: (week) => set({ currentWeek: week }),
-      
-      setLegend: (legend) => set({ legend }),
-      
-      setSaveStatus: (status) => {
-        set({ saveStatus: status })
-        
-        // Auto-reset du statut après 3 secondes
-        if (status === 'saved' || status === 'error') {
-          setTimeout(() => {
-            const currentStatus = get().saveStatus
-            if (currentStatus === status) {
-              set({ saveStatus: 'idle' })
-            }
-          }, 3000)
+      // Gestion employés
+      addEmployee: (name) => {
+        const employees = get().employees
+        const newId = employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1
+        const newEmployee: SimpleEmployee = {
+          id: newId,
+          name,
+          active: true
         }
+        set({ employees: [...employees, newEmployee] })
       },
       
-      // Gestion Undo/Redo
-      pushToUndoStack: (state: any) => {
-        const { undoStack } = get()
-        const newUndoStack = [...undoStack, state].slice(-10) // Garder max 10 niveaux
-        
-        set({
-          undoStack: newUndoStack,
-          redoStack: [] // Clear redo stack when new action is performed
-        })
+      removeEmployee: (id) => {
+        set(state => ({
+          employees: state.employees.filter(e => e.id !== id),
+          selectedEmployeeId: state.selectedEmployeeId === id ? null : state.selectedEmployeeId
+        }))
       },
       
-      undo: () => {
-        const { undoStack, redoStack, currentWeek } = get()
-        
-        if (undoStack.length === 0) return
-        
-        const previousState = undoStack[undoStack.length - 1]
-        const newUndoStack = undoStack.slice(0, -1)
-        const newRedoStack = currentWeek ? [...redoStack, currentWeek] : redoStack
-        
-        set({
-          currentWeek: previousState,
-          undoStack: newUndoStack,
-          redoStack: newRedoStack
-        })
+      // Gestion créneaux
+      addSlot: (slotData) => {
+        const newSlot: SimpleSlot = {
+          ...slotData,
+          id: generateId(),
+          color: CATEGORY_COLORS[slotData.category] || '#6B7280'
+        }
+        set(state => ({ slots: [...state.slots, newSlot] }))
       },
       
-      redo: () => {
-        const { undoStack, redoStack, currentWeek } = get()
-        
-        if (redoStack.length === 0) return
-        
-        const nextState = redoStack[redoStack.length - 1]
-        const newRedoStack = redoStack.slice(0, -1)
-        const newUndoStack = currentWeek ? [...undoStack, currentWeek] : undoStack
-        
-        set({
-          currentWeek: nextState,
-          undoStack: newUndoStack,
-          redoStack: newRedoStack
-        })
+      updateSlot: (id, updates) => {
+        set(state => ({
+          slots: state.slots.map(slot => 
+            slot.id === id 
+              ? { 
+                  ...slot, 
+                  ...updates,
+                  color: updates.category ? CATEGORY_COLORS[updates.category] || slot.color : slot.color
+                }
+              : slot
+          )
+        }))
       },
       
-      clearUndoRedo: () => set({ undoStack: [], redoStack: [] })
+      removeSlot: (id) => {
+        set(state => ({ slots: state.slots.filter(slot => slot.id !== id) }))
+      },
+      
+      getSlotsForEmployee: (employeeId, _week) => {
+        return get().slots.filter(slot => 
+          slot.employeeId === employeeId && 
+          // Pour simplifier, on ne filtre pas par semaine pour l'instant
+          true
+        )
+      },
+      
+      // Initialisation avec des données par défaut
+      initializeDefaultData: () => {
+        const state = get()
+        if (state.employees.length === 0) {
+          console.log('🚀 Initialisation des données par défaut...')
+          
+          // Ajouter des employés par défaut
+          const defaultEmployees: SimpleEmployee[] = [
+            { id: 1, name: 'Noah Jamet', active: true },
+            { id: 2, name: 'Marie Dupont', active: true },
+            { id: 3, name: 'Pierre Martin', active: true }
+          ]
+          
+          set({ employees: defaultEmployees, selectedEmployeeId: 1 })
+          console.log('✅ Données par défaut initialisées')
+        }
+      }
     }),
     {
-      name: 'planning-store',
-      // Ne pas persister les données sensibles
-      partialize: (state: PlanningState) => ({
-        selectedWeekKind: state.selectedWeekKind,
-        selectedVacationPeriod: state.selectedVacationPeriod,
-        selectedWeekStart: state.selectedWeekStart,
-        selectedEmployeeId: state.selectedEmployeeId
-      })
+      name: 'planning-storage',
+      version: 1
     }
   )
 )

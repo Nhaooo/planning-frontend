@@ -1,696 +1,468 @@
-import { FC, useEffect, useState, useRef, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Clock, Edit, Trash2, Copy, Move, RotateCcw } from 'lucide-react'
-import { usePlanningStore } from '../store/planningStore'
-import { weekService, slotService } from '../services/api'
-import { generateTimeSlots, getDayNames, getWeekDates, getMondayOfWeek } from '../utils/timeUtils'
-import SlotModal from './SlotModal'
-import LoadingSpinner from './LoadingSpinner'
-import { Slot, SlotFormData, WeekResponse, TimeSlot } from '../types'
-import { getCategoryStyle } from '../utils/categoryUtils'
+import React, { useState, useEffect } from 'react'
+import { Plus, Edit, Trash2, Copy } from 'lucide-react'
+import { usePlanningStore, SimpleSlot } from '../store/planningStore'
 
-// Types pour le drag & drop
-interface DragState {
-  isDragging: boolean
-  draggedSlot: Slot | null
-  dragType: 'move' | 'resize' | 'duplicate' | null
-  startPosition: { x: number; y: number }
-  currentPosition: { x: number; y: number }
-  originalSlot: Slot | null
-  previewSlot: Partial<Slot> | null
+// Configuration
+const HOURS = Array.from({ length: 14 }, (_, i) => i + 9) // 9h à 22h
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+const CATEGORIES = [
+  { id: 'admin', label: 'Administration', color: '#3B82F6' },
+  { id: 'prestation', label: 'Prestation', color: '#10B981' },
+  { id: 'ecole', label: 'École', color: '#F59E0B' },
+  { id: 'competition', label: 'Compétition', color: '#EF4444' },
+  { id: 'ouverture', label: 'Ouverture', color: '#8B5CF6' },
+  { id: 'loisir', label: 'Loisir', color: '#06B6D4' },
+  { id: 'rangement', label: 'Rangement', color: '#6B7280' },
+  { id: 'sante', label: 'Santé', color: '#EC4899' }
+]
+
+// Modal pour créer/éditer un créneau
+interface SlotModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSave: (slot: Omit<SimpleSlot, 'id' | 'color'>) => void
+  slot?: SimpleSlot | null
+  initialDay?: number
+  initialHour?: number
 }
 
-const PlanningGrid: FC = () => {
-  const {
-    selectedEmployeeId,
-    selectedWeekKind,
-    selectedVacationPeriod,
-    selectedWeekStart,
-    currentWeek,
-    setCurrentWeek,
-    setSaveStatus
-  } = usePlanningStore()
-
-  const queryClient = useQueryClient()
-  const gridRef = useRef<HTMLDivElement>(null)
-  
-  // États locaux
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [newSlotData, setNewSlotData] = useState<Partial<SlotFormData> | null>(null)
-  const [dragState, setDragState] = useState<DragState>({
-    isDragging: false,
-    draggedSlot: null,
-    dragType: null,
-    startPosition: { x: 0, y: 0 },
-    currentPosition: { x: 0, y: 0 },
-    originalSlot: null,
-    previewSlot: null
+const SlotModal: React.FC<SlotModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  slot, 
+  initialDay = 0, 
+  initialHour = 9 
+}) => {
+  const { selectedEmployeeId } = usePlanningStore()
+  const [formData, setFormData] = useState({
+    title: '',
+    category: 'admin',
+    comment: '',
+    day: initialDay,
+    startHour: initialHour,
+    startMinute: 0,
+    durationMinutes: 60
   })
 
-  // Configuration de la grille
-  const OPENING_HOUR = 9
-  const CLOSING_HOUR = 22
-  const CELL_HEIGHT = 64 // hauteur d'une cellule en px
-  const TIME_COLUMN_WIDTH = 80 // largeur colonne des heures
-  
-  const timeSlots = generateTimeSlots(OPENING_HOUR, CLOSING_HOUR)
-  const dayNames = getDayNames()
-  const mondayDate = getMondayOfWeek(selectedWeekStart)
-  const weekDates = getWeekDates(mondayDate)
-
-  console.log('🔄 PlanningGrid render - Employé:', selectedEmployeeId, 'Semaine courante:', currentWeek?.week.id)
-
-  // ==================== REQUÊTES ET MUTATIONS ====================
-
-  // Charger les données de la semaine
-  const { data: weekData, isLoading, error, refetch } = useQuery<WeekResponse[]>({
-    queryKey: ['planning-week', selectedEmployeeId, selectedWeekKind, selectedVacationPeriod, selectedWeekStart],
-    queryFn: async () => {
-      if (!selectedEmployeeId) {
-        console.log('❌ Pas d\'employé sélectionné')
-        return []
-      }
-      
-      console.log('📊 Chargement semaine...', {
-        employeeId: selectedEmployeeId,
-        kind: selectedWeekKind,
-        vacation: selectedVacationPeriod,
-        weekStart: selectedWeekStart
-      })
-      
-      try {
-        const result = await weekService.getWeeks({
-          employeeId: selectedEmployeeId,
-          kind: selectedWeekKind,
-          vacation: selectedVacationPeriod,
-          weekStart: selectedWeekStart
-        })
-        
-        console.log('✅ Semaine chargée:', result)
-        return result || []
-      } catch (error) {
-        console.error('❌ Erreur chargement semaine:', error)
-        return []
-      }
-    },
-    enabled: !!selectedEmployeeId,
-    staleTime: 30000, // 30 secondes
-    retry: 2
-  })
-
-  // Créer une semaine si elle n'existe pas
-  const createWeekMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedEmployeeId) throw new Error('Aucun employé sélectionné')
-      
-      console.log('🆕 Création nouvelle semaine...')
-      return await weekService.createWeek(
-        selectedEmployeeId,
-        selectedWeekKind,
-        selectedWeekStart,
-        selectedVacationPeriod
-      )
-    },
-    onSuccess: (newWeek) => {
-      console.log('✅ Semaine créée:', newWeek)
-      setCurrentWeek(newWeek)
-      queryClient.invalidateQueries({ queryKey: ['planning-week'] })
-    },
-    onError: (error) => {
-      console.error('❌ Erreur création semaine:', error)
-      alert('Erreur lors de la création de la semaine')
-    }
-  })
-
-  // Créer un créneau
-  const createSlotMutation = useMutation({
-    mutationFn: async (slotData: SlotFormData) => {
-      if (!currentWeek) throw new Error('Aucune semaine sélectionnée')
-      
-      console.log('🆕 Création créneau:', slotData)
-      return await slotService.createSlot(currentWeek.week.id, slotData)
-    },
-    onMutate: () => setSaveStatus('saving'),
-    onSuccess: (newSlot) => {
-      console.log('✅ Créneau créé:', newSlot)
-      setSaveStatus('saved')
-      queryClient.invalidateQueries({ queryKey: ['planning-week'] })
-      setTimeout(() => setSaveStatus('idle'), 2000)
-    },
-    onError: (error) => {
-      console.error('❌ Erreur création créneau:', error)
-      setSaveStatus('error')
-      alert('Erreur lors de la création du créneau')
-    }
-  })
-
-  // Modifier un créneau
-  const updateSlotMutation = useMutation({
-    mutationFn: async ({ slotId, slotData }: { slotId: number; slotData: Partial<SlotFormData> }) => {
-      if (!currentWeek) throw new Error('Aucune semaine sélectionnée')
-      
-      console.log('🔄 Modification créneau:', slotId, slotData)
-      return await slotService.updateSlot(currentWeek.week.id, slotId, slotData)
-    },
-    onMutate: () => setSaveStatus('saving'),
-    onSuccess: () => {
-      console.log('✅ Créneau modifié')
-      setSaveStatus('saved')
-      queryClient.invalidateQueries({ queryKey: ['planning-week'] })
-      setTimeout(() => setSaveStatus('idle'), 2000)
-    },
-    onError: (error) => {
-      console.error('❌ Erreur modification créneau:', error)
-      setSaveStatus('error')
-      alert('Erreur lors de la modification du créneau')
-    }
-  })
-
-  // Supprimer un créneau
-  const deleteSlotMutation = useMutation({
-    mutationFn: async (slotId: number) => {
-      if (!currentWeek) throw new Error('Aucune semaine sélectionnée')
-      
-      console.log('🗑️ Suppression créneau:', slotId)
-      return await slotService.deleteSlot(currentWeek.week.id, slotId)
-    },
-    onMutate: () => setSaveStatus('saving'),
-    onSuccess: () => {
-      console.log('✅ Créneau supprimé')
-      setSaveStatus('saved')
-      queryClient.invalidateQueries({ queryKey: ['planning-week'] })
-      setTimeout(() => setSaveStatus('idle'), 2000)
-    },
-    onError: (error) => {
-      console.error('❌ Erreur suppression créneau:', error)
-      setSaveStatus('error')
-      alert('Erreur lors de la suppression du créneau')
-    }
-  })
-
-  // ==================== GESTION DES DONNÉES ====================
-
-  // Mettre à jour la semaine courante
   useEffect(() => {
-    if (weekData && weekData.length > 0) {
-      console.log('📊 Mise à jour semaine courante:', weekData[0])
-      setCurrentWeek(weekData[0])
+    if (slot) {
+      setFormData({
+        title: slot.title,
+        category: slot.category,
+        comment: slot.comment || '',
+        day: slot.day,
+        startHour: slot.startHour,
+        startMinute: slot.startMinute,
+        durationMinutes: slot.durationMinutes
+      })
     } else {
-      console.log('📊 Aucune semaine trouvée')
-      setCurrentWeek(undefined)
-    }
-  }, [weekData, setCurrentWeek])
-
-  // ==================== FONCTIONS UTILITAIRES ====================
-
-  // Calculer la position d'un créneau
-  const getSlotPosition = useCallback((startMin: number, durationMin: number) => {
-    const top = ((startMin - OPENING_HOUR * 60) / 60) * CELL_HEIGHT
-    const height = Math.max((durationMin / 60) * CELL_HEIGHT, 32)
-    return { top, height }
-  }, [])
-
-  // Formater l'heure
-  const formatTime = useCallback((minutes: number) => {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
-  }, [])
-
-  // Convertir coordonnées en position grille
-  const getGridPosition = useCallback((clientX: number, clientY: number) => {
-    if (!gridRef.current) return null
-
-    const gridRect = gridRef.current.getBoundingClientRect()
-    const dayWidth = (gridRect.width - TIME_COLUMN_WIDTH) / 7
-    
-    const dayIndex = Math.floor((clientX - gridRect.left - TIME_COLUMN_WIDTH) / dayWidth)
-    const timeIndex = Math.floor((clientY - gridRect.top) / CELL_HEIGHT)
-    
-    if (dayIndex < 0 || dayIndex >= 7 || timeIndex < 0 || timeIndex >= timeSlots.length) {
-      return null
-    }
-
-    return {
-      dayIndex,
-      timeIndex,
-      startMin: timeSlots[timeIndex].totalMinutes
-    }
-  }, [timeSlots])
-
-  // ==================== GESTIONNAIRES D'ÉVÉNEMENTS ====================
-
-  // Clic sur cellule vide pour créer un créneau
-  const handleCellClick = useCallback((dayIndex: number, timeSlot: TimeSlot) => {
-    if (dragState.isDragging) return
-
-    console.log('🎯 Clic cellule pour création:', { dayIndex, timeSlot: timeSlot.label })
-
-    const slotData: Partial<SlotFormData> = {
-      day_index: dayIndex,
-      start_min: timeSlot.totalMinutes,
-      duration_min: 60,
-      title: '',
-      category: 'a',
-      comment: ''
-    }
-
-    setNewSlotData(slotData)
-    setSelectedSlot(null)
-    setIsModalOpen(true)
-  }, [dragState.isDragging])
-
-  // Clic sur créneau existant pour le modifier
-  const handleSlotClick = useCallback((slot: Slot, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (dragState.isDragging) return
-
-    console.log('✏️ Clic créneau pour modification:', slot)
-    setSelectedSlot(slot)
-    setNewSlotData(null)
-    setIsModalOpen(true)
-  }, [dragState.isDragging])
-
-  // Supprimer un créneau
-  const handleSlotDelete = useCallback(async (slot: Slot, e: React.MouseEvent) => {
-    e.stopPropagation()
-    
-    if (window.confirm(`Supprimer le créneau "${slot.title}" ?`)) {
-      await deleteSlotMutation.mutateAsync(slot.id)
-    }
-  }, [deleteSlotMutation])
-
-  // Dupliquer un créneau
-  const handleSlotDuplicate = useCallback(async (slot: Slot, e: React.MouseEvent) => {
-    e.stopPropagation()
-    
-    const duplicateData: SlotFormData = {
-      day_index: slot.day_index,
-      start_min: slot.start_min + slot.duration_min, // Placer après le créneau original
-      duration_min: slot.duration_min,
-      title: `${slot.title} (copie)`,
-      category: slot.category,
-      comment: slot.comment || ''
-    }
-    
-    await createSlotMutation.mutateAsync(duplicateData)
-  }, [createSlotMutation])
-
-  // Fermer le modal
-  const handleModalClose = useCallback(() => {
-    setIsModalOpen(false)
-    setSelectedSlot(null)
-    setNewSlotData(null)
-  }, [])
-
-  // Sauvegarder depuis le modal
-  const handleModalSave = useCallback(async (data: SlotFormData) => {
-    console.log('💾 Sauvegarde depuis modal:', data)
-
-    // S'assurer qu'on a une semaine
-    if (!currentWeek) {
-      console.log('⚠️ Pas de semaine, création automatique...')
-      await createWeekMutation.mutateAsync()
-      // Attendre que la semaine soit créée
-      await new Promise(resolve => setTimeout(resolve, 1000))
-    }
-
-    try {
-      if (selectedSlot) {
-        // Modification
-        await updateSlotMutation.mutateAsync({
-          slotId: selectedSlot.id,
-          slotData: data
-        })
-      } else {
-        // Création
-        await createSlotMutation.mutateAsync(data)
-      }
-      handleModalClose()
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde:', error)
-    }
-  }, [selectedSlot, currentWeek, createWeekMutation, updateSlotMutation, createSlotMutation, handleModalClose])
-
-  // ==================== DRAG & DROP ====================
-
-  // Début du drag
-  const handleMouseDown = useCallback((slot: Slot, e: React.MouseEvent, dragType: 'move' | 'resize' | 'duplicate') => {
-    if (e.button !== 0) return // Seulement clic gauche
-
-    console.log('🖱️ Début drag:', { slotId: slot.id, dragType })
-
-    setDragState({
-      isDragging: true,
-      draggedSlot: slot,
-      dragType,
-      startPosition: { x: e.clientX, y: e.clientY },
-      currentPosition: { x: e.clientX, y: e.clientY },
-      originalSlot: { ...slot },
-      previewSlot: null
-    })
-
-    e.preventDefault()
-  }, [])
-
-  // Mouvement pendant le drag
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!dragState.isDragging || !dragState.draggedSlot) return
-
-    const newPosition = getGridPosition(e.clientX, e.clientY)
-    if (!newPosition) return
-
-    setDragState(prev => ({
-      ...prev,
-      currentPosition: { x: e.clientX, y: e.clientY },
-      previewSlot: {
-        ...prev.draggedSlot,
-        day_index: newPosition.dayIndex,
-        start_min: newPosition.startMin
-      }
-    }))
-  }, [dragState.isDragging, dragState.draggedSlot, getGridPosition])
-
-  // Fin du drag
-  const handleMouseUp = useCallback(async () => {
-    if (!dragState.isDragging || !dragState.draggedSlot || !dragState.originalSlot) {
-      setDragState({
-        isDragging: false,
-        draggedSlot: null,
-        dragType: null,
-        startPosition: { x: 0, y: 0 },
-        currentPosition: { x: 0, y: 0 },
-        originalSlot: null,
-        previewSlot: null
+      setFormData({
+        title: '',
+        category: 'admin',
+        comment: '',
+        day: initialDay,
+        startHour: initialHour,
+        startMinute: 0,
+        durationMinutes: 60
       })
-      return
     }
+  }, [slot, initialDay, initialHour])
 
-    const { draggedSlot, originalSlot, previewSlot, dragType } = dragState
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEmployeeId || !formData.title.trim()) return
 
-    // Vérifier si la position a changé
-    const hasChanged = previewSlot && (
-      previewSlot.day_index !== originalSlot.day_index ||
-      previewSlot.start_min !== originalSlot.start_min
-    )
-
-    if (hasChanged && previewSlot) {
-      console.log('💾 Sauvegarde après drag:', { dragType, original: originalSlot, new: previewSlot })
-
-      try {
-        if (dragType === 'duplicate') {
-           // Duplication
-           await createSlotMutation.mutateAsync({
-             day_index: previewSlot.day_index!,
-             start_min: previewSlot.start_min!,
-             duration_min: draggedSlot.duration_min,
-             title: `${draggedSlot.title} (copie)`,
-             category: draggedSlot.category,
-             comment: draggedSlot.comment || ''
-           })
-         } else {
-           // Déplacement
-           await updateSlotMutation.mutateAsync({
-             slotId: draggedSlot.id,
-             slotData: {
-               day_index: previewSlot.day_index!,
-               start_min: previewSlot.start_min!,
-               duration_min: draggedSlot.duration_min,
-               title: draggedSlot.title,
-               category: draggedSlot.category,
-               comment: draggedSlot.comment
-             }
-           })
-         }
-      } catch (error) {
-        console.error('❌ Erreur drag & drop:', error)
-      }
-    }
-
-    // Reset du drag state
-    setDragState({
-      isDragging: false,
-      draggedSlot: null,
-      dragType: null,
-      startPosition: { x: 0, y: 0 },
-      currentPosition: { x: 0, y: 0 },
-      originalSlot: null,
-      previewSlot: null
+    onSave({
+      employeeId: selectedEmployeeId,
+      title: formData.title.trim(),
+      category: formData.category,
+      comment: formData.comment.trim(),
+      day: formData.day,
+      startHour: formData.startHour,
+      startMinute: formData.startMinute,
+      durationMinutes: formData.durationMinutes
     })
-  }, [dragState, createSlotMutation, updateSlotMutation])
-
-  // Event listeners pour le drag & drop
-  useEffect(() => {
-    if (dragState.isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [dragState.isDragging, handleMouseMove, handleMouseUp])
-
-  // ==================== RENDU ====================
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <LoadingSpinner size="large" />
-        <span className="ml-3 text-gray-600">Chargement du planning...</span>
-      </div>
-    )
+    onClose()
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-red-600 mb-4">
-          <Clock className="h-12 w-12 mx-auto mb-2" />
-          <p className="text-lg font-medium">Erreur lors du chargement</p>
-          <p className="text-sm">{error.message}</p>
-        </div>
-        <button onClick={() => refetch()} className="btn-primary">
-          <RotateCcw className="h-4 w-4 mr-2" />
-          Réessayer
-        </button>
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">
+          {slot ? 'Modifier le créneau' : 'Nouveau créneau'}
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Titre</label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              placeholder="Ex: Cours d'escalade"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Catégorie</label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+            >
+              {CATEGORIES.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Jour</label>
+              <select
+                value={formData.day}
+                onChange={(e) => setFormData({ ...formData, day: parseInt(e.target.value) })}
+                className="w-full border rounded px-3 py-2"
+              >
+                {DAYS.map((day, index) => (
+                  <option key={index} value={index}>{day}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Heure</label>
+              <select
+                value={formData.startHour}
+                onChange={(e) => setFormData({ ...formData, startHour: parseInt(e.target.value) })}
+                className="w-full border rounded px-3 py-2"
+              >
+                {HOURS.map(hour => (
+                  <option key={hour} value={hour}>{hour}:00</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Minutes</label>
+              <select
+                value={formData.startMinute}
+                onChange={(e) => setFormData({ ...formData, startMinute: parseInt(e.target.value) })}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value={0}>:00</option>
+                <option value={15}>:15</option>
+                <option value={30}>:30</option>
+                <option value={45}>:45</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Durée</label>
+              <select
+                value={formData.durationMinutes}
+                onChange={(e) => setFormData({ ...formData, durationMinutes: parseInt(e.target.value) })}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value={15}>15 min</option>
+                <option value={30}>30 min</option>
+                <option value={45}>45 min</option>
+                <option value={60}>1h</option>
+                <option value={90}>1h30</option>
+                <option value={120}>2h</option>
+                <option value={180}>3h</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Commentaire</label>
+            <textarea
+              value={formData.comment}
+              onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              rows={2}
+              placeholder="Commentaire optionnel..."
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 border rounded hover:bg-gray-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              {slot ? 'Modifier' : 'Créer'}
+            </button>
+          </div>
+        </form>
       </div>
-    )
+    </div>
+  )
+}
+
+// Composant principal
+const PlanningGrid: React.FC = () => {
+  const {
+    employees,
+    selectedEmployeeId,
+    setSelectedEmployee,
+    addSlot,
+    updateSlot,
+    removeSlot,
+    getSlotsForEmployee,
+    initializeDefaultData
+  } = usePlanningStore()
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingSlot, setEditingSlot] = useState<SimpleSlot | null>(null)
+  const [modalInitialDay, setModalInitialDay] = useState(0)
+  const [modalInitialHour, setModalInitialHour] = useState(9)
+
+  // Initialiser les données au premier chargement
+  useEffect(() => {
+    initializeDefaultData()
+  }, [initializeDefaultData])
+
+  // Obtenir les créneaux de l'employé sélectionné
+  const slots = selectedEmployeeId ? getSlotsForEmployee(selectedEmployeeId, '') : []
+
+  // Ouvrir le modal pour créer un créneau
+  const handleCellClick = (day: number, hour: number) => {
+    if (!selectedEmployeeId) return
+    setEditingSlot(null)
+    setModalInitialDay(day)
+    setModalInitialHour(hour)
+    setIsModalOpen(true)
+  }
+
+  // Ouvrir le modal pour éditer un créneau
+  const handleSlotEdit = (slot: SimpleSlot) => {
+    setEditingSlot(slot)
+    setIsModalOpen(true)
+  }
+
+  // Sauvegarder un créneau
+  const handleSlotSave = (slotData: Omit<SimpleSlot, 'id' | 'color'>) => {
+    if (editingSlot) {
+      updateSlot(editingSlot.id, slotData)
+    } else {
+      addSlot(slotData)
+    }
+  }
+
+  // Dupliquer un créneau
+  const handleSlotDuplicate = (slot: SimpleSlot) => {
+    addSlot({
+      employeeId: slot.employeeId,
+      title: `${slot.title} (copie)`,
+      category: slot.category,
+      comment: slot.comment,
+      day: slot.day,
+      startHour: slot.startHour + 1, // Décaler d'une heure
+      startMinute: slot.startMinute,
+      durationMinutes: slot.durationMinutes
+    })
+  }
+
+  // Calculer la position d'un créneau
+  const getSlotStyle = (slot: SimpleSlot) => {
+    const top = (slot.startHour - 9) * 60 + slot.startMinute
+    const height = slot.durationMinutes
+    return {
+      top: `${top}px`,
+      height: `${height}px`,
+      backgroundColor: slot.color,
+      left: '2px',
+      right: '2px'
+    }
+  }
+
+  // Formater l'heure
+  const formatTime = (hour: number, minute: number) => {
+    return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
   }
 
   if (!selectedEmployeeId) {
     return (
-      <div className="text-center py-12">
-        <Clock className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-        <p className="text-gray-500 text-lg">Sélectionnez un employé pour afficher le planning</p>
-      </div>
-    )
-  }
-
-  // Si pas de semaine, proposer d'en créer une
-  if (!currentWeek) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-        <div className="text-center">
-          <Clock className="h-16 w-16 mx-auto mb-4 text-blue-500" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Aucune semaine de planning
-          </h3>
-          <p className="text-gray-600 mb-6">
-            Créez une nouvelle semaine pour commencer à planifier les créneaux.
-          </p>
-          <button
-            onClick={() => createWeekMutation.mutate()}
-            disabled={createWeekMutation.isPending}
-            className="btn-primary"
-          >
-            {createWeekMutation.isPending ? (
-              <>
-                <LoadingSpinner size="small" />
-                <span className="ml-2">Création...</span>
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" />
-                Créer une semaine de planning
-              </>
-            )}
-          </button>
+      <div className="bg-white rounded-lg shadow p-8 text-center">
+        <h2 className="text-xl font-semibold mb-4">Planning Hebdomadaire</h2>
+        <p className="text-gray-600 mb-6">Sélectionnez un employé pour voir son planning</p>
+        
+        <div className="space-y-2">
+          {employees.map(employee => (
+            <button
+              key={employee.id}
+              onClick={() => setSelectedEmployee(employee.id)}
+              className="block w-full p-3 text-left border rounded hover:bg-blue-50 hover:border-blue-300"
+            >
+              {employee.name}
+            </button>
+          ))}
         </div>
       </div>
     )
   }
+
+  const selectedEmployee = employees.find(e => e.id === selectedEmployeeId)
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-      {/* Barre de debug */}
-      <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm">
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* En-tête */}
+      <div className="bg-blue-50 p-4 border-b">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <span><strong>Employé:</strong> {selectedEmployeeId}</span>
-            <span><strong>Semaine:</strong> {currentWeek.week.id}</span>
-            <span><strong>Créneaux:</strong> {currentWeek.slots.length}</span>
-          </div>
+          <h2 className="text-xl font-semibold">
+            Planning de {selectedEmployee?.name}
+          </h2>
           <div className="flex items-center space-x-2">
-            {createSlotMutation.isPending && <span className="text-blue-600">Création...</span>}
-            {updateSlotMutation.isPending && <span className="text-orange-600">Modification...</span>}
-            {deleteSlotMutation.isPending && <span className="text-red-600">Suppression...</span>}
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployee(parseInt(e.target.value))}
+              className="border rounded px-3 py-1"
+            >
+              {employees.map(employee => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-600">
+              {slots.length} créneau{slots.length > 1 ? 'x' : ''}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* En-tête avec les jours */}
-      <div className="grid grid-cols-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-        <div className="p-4 border-r border-gray-200 flex items-center justify-center">
-          <Clock className="h-5 w-5 text-gray-500" />
-        </div>
-        {dayNames.map((dayName, index) => (
-          <div key={index} className="p-4 border-r border-gray-200 last:border-r-0 text-center">
-            <div className="font-semibold text-gray-900 text-sm md:text-base">
-              <span className="hidden md:inline">{dayName}</span>
-              <span className="md:hidden">{dayName.slice(0, 3)}</span>
-            </div>
-            <div className="text-xs text-gray-600 mt-1">
-              {weekDates[index].toLocaleDateString('fr-FR', { 
-                day: '2-digit', 
-                month: '2-digit' 
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Grille principale */}
-      <div className="overflow-auto max-h-[600px] custom-scrollbar" ref={gridRef}>
-        <div className="grid grid-cols-8 min-h-full relative">
+      {/* Grille */}
+      <div className="overflow-auto max-h-[600px]">
+        <div className="grid grid-cols-8 min-h-full">
           {/* Colonne des heures */}
-          <div className="border-r border-gray-200 bg-gray-50 sticky left-0 z-10">
-            {timeSlots.map((timeSlot, index) => (
-              <div 
-                key={index} 
-                className="h-16 border-b border-gray-200 flex items-center justify-center text-sm text-gray-600 font-medium"
-              >
-                {timeSlot.label}
+          <div className="bg-gray-50 border-r">
+            <div className="h-12 border-b flex items-center justify-center font-medium text-sm">
+              Heure
+            </div>
+            {HOURS.map(hour => (
+              <div key={hour} className="h-[60px] border-b flex items-center justify-center text-sm">
+                {hour}:00
               </div>
             ))}
           </div>
 
           {/* Colonnes des jours */}
-          {Array.from({ length: 7 }, (_, dayIndex) => {
-            const daySlots = currentWeek.slots.filter(slot => slot.day_index === dayIndex)
-            
-            return (
-              <div key={dayIndex} className="border-r border-gray-200 last:border-r-0 relative bg-white">
-                {/* Cellules horaires */}
-                {timeSlots.map((timeSlot, timeIndex) => (
+          {DAYS.map((day, dayIndex) => (
+            <div key={dayIndex} className="border-r last:border-r-0 relative">
+              {/* En-tête du jour */}
+              <div className="h-12 border-b bg-gray-50 flex items-center justify-center font-medium text-sm">
+                {day}
+              </div>
+
+              {/* Cellules horaires */}
+              <div className="relative">
+                {HOURS.map(hour => (
                   <div
-                    key={timeIndex}
-                    className="h-16 border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer group relative"
-                    onClick={() => handleCellClick(dayIndex, timeSlot)}
-                    title={`Créer un créneau à ${timeSlot.label}`}
+                    key={hour}
+                    className="h-[60px] border-b hover:bg-blue-50 cursor-pointer group relative"
+                    onClick={() => handleCellClick(dayIndex, hour)}
                   >
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
                       <Plus className="h-5 w-5 text-blue-500" />
                     </div>
                   </div>
                 ))}
 
                 {/* Créneaux */}
-                {daySlots.map((slot) => {
-                  const position = getSlotPosition(slot.start_min, slot.duration_min)
-                  const categoryStyle = getCategoryStyle(slot.category)
-                  const isDragged = dragState.draggedSlot?.id === slot.id
-                  
-                  return (
+                {slots
+                  .filter(slot => slot.day === dayIndex)
+                  .map(slot => (
                     <div
                       key={slot.id}
-                      className={`absolute left-1 right-1 rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-lg hover:scale-105 z-20 group ${
-                        isDragged ? 'opacity-50 scale-110 shadow-xl' : ''
-                      }`}
-                      style={{
-                        top: `${position.top}px`,
-                        height: `${position.height}px`,
-                        ...categoryStyle
+                      className="absolute rounded shadow-sm border border-white cursor-pointer group z-10"
+                      style={getSlotStyle(slot)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSlotEdit(slot)
                       }}
-                      onClick={(e) => handleSlotClick(slot, e)}
                     >
-                      {/* Contenu du créneau */}
-                      <div className="p-2 h-full flex flex-col justify-between">
+                      <div className="p-1 h-full flex flex-col justify-between text-white text-xs">
                         <div>
-                          <div className="font-medium text-xs leading-tight truncate pr-6">
-                            {slot.title}
-                          </div>
-                          <div className="text-xs opacity-75 mt-1">
-                            {formatTime(slot.start_min)} - {formatTime(slot.start_min + slot.duration_min)}
+                          <div className="font-medium truncate">{slot.title}</div>
+                          <div className="opacity-90">
+                            {formatTime(slot.startHour, slot.startMinute)} - 
+                            {formatTime(
+                              slot.startHour + Math.floor((slot.startMinute + slot.durationMinutes) / 60),
+                              (slot.startMinute + slot.durationMinutes) % 60
+                            )}
                           </div>
                         </div>
                         {slot.comment && (
-                          <div className="text-xs opacity-75 truncate">
-                            {slot.comment}
-                          </div>
+                          <div className="opacity-75 truncate">{slot.comment}</div>
                         )}
                       </div>
 
                       {/* Actions au hover */}
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex flex-col space-y-1">
+                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex space-x-1">
                         <button
-                          onClick={(e) => handleSlotClick(slot, e)}
-                          className="p-1 bg-white bg-opacity-90 rounded shadow hover:bg-opacity-100 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSlotEdit(slot)
+                          }}
+                          className="p-1 bg-white bg-opacity-90 rounded text-gray-700 hover:bg-opacity-100"
                           title="Modifier"
                         >
-                          <Edit className="h-3 w-3 text-blue-600" />
+                          <Edit className="h-3 w-3" />
                         </button>
                         <button
-                          onClick={(e) => handleSlotDuplicate(slot, e)}
-                          className="p-1 bg-white bg-opacity-90 rounded shadow hover:bg-opacity-100 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSlotDuplicate(slot)
+                          }}
+                          className="p-1 bg-white bg-opacity-90 rounded text-gray-700 hover:bg-opacity-100"
                           title="Dupliquer"
                         >
-                          <Copy className="h-3 w-3 text-green-600" />
+                          <Copy className="h-3 w-3" />
                         </button>
                         <button
-                          onClick={(e) => handleSlotDelete(slot, e)}
-                          className="p-1 bg-white bg-opacity-90 rounded shadow hover:bg-opacity-100 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (window.confirm('Supprimer ce créneau ?')) {
+                              removeSlot(slot.id)
+                            }
+                          }}
+                          className="p-1 bg-white bg-opacity-90 rounded text-red-600 hover:bg-opacity-100"
                           title="Supprimer"
                         >
-                          <Trash2 className="h-3 w-3 text-red-600" />
+                          <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
-
-                      {/* Poignées de drag */}
-                      <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100">
-                        <button
-                          onMouseDown={(e) => handleMouseDown(slot, e, 'move')}
-                          className="p-1 bg-white bg-opacity-90 rounded shadow hover:bg-opacity-100 transition-all cursor-move"
-                          title="Déplacer"
-                        >
-                          <Move className="h-3 w-3 text-gray-600" />
-                        </button>
-                      </div>
-
-                      {/* Poignée de redimensionnement */}
-                      <div 
-                        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-black bg-opacity-20 rounded-b-lg"
-                        onMouseDown={(e) => handleMouseDown(slot, e, 'resize')}
-                        title="Redimensionner"
-                      />
                     </div>
-                  )
-                })}
+                  ))}
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Modal pour créer/éditer un créneau */}
+      {/* Modal */}
       <SlotModal
         isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onSave={handleModalSave}
-        slot={selectedSlot}
-        initialData={newSlotData}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSlotSave}
+        slot={editingSlot}
+        initialDay={modalInitialDay}
+        initialHour={modalInitialHour}
       />
     </div>
   )
