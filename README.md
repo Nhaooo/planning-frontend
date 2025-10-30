@@ -234,4 +234,4 @@ L'application communique avec le backend via :
 
 ## 📝 License
 
-Ce projet est sous licence MIT.
+Ce projet est sous licence MIT."trigger $(date)" 
