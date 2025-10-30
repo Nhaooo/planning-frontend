@@ -276,7 +276,7 @@ const PlanningGrid: React.FC = () => {
                   // Pas d'alerte ici car le nouveau créneau est déjà créé
                 }
               })
-            }, 100) // 100ms de délai pour l'effet visuel
+            }, 10) // 100ms de délai pour l'effet visuel
           },
           onError: (error) => {
             console.error('❌ Erreur création nouveau créneau:', error)
