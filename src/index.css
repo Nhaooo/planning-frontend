@@ -13,6 +13,54 @@
   background-color: rgba(59, 130, 246, 0.1) !important;
 }
 
+/* Handles d'étirement */
+.resize-handle {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 20;
+}
+
+.resize-handle:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(0, 0, 0, 0.5);
+}
+
+.resize-handle-vertical {
+  width: 100%;
+  height: 6px;
+  cursor: ns-resize;
+  left: 0;
+}
+
+.resize-handle-horizontal {
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  top: 0;
+}
+
+.resize-handle-bottom {
+  bottom: -3px;
+}
+
+.resize-handle-right {
+  right: -3px;
+}
+
+/* Afficher les handles au survol du bloc */
+.slot-container:hover .resize-handle {
+  opacity: 1;
+}
+
+/* Animation d'étirement */
+.resizing {
+  transition: all 0.1s ease;
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
