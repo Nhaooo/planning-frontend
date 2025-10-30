@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Variables d'environnement pour le build
-      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://planning-backend-latest.onrender.com/api/v1' }}
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://planning-backend-zrjl.onrender.com/api/v1' }}
       VITE_APP_TITLE: "Planning Hebdomadaire"
       VITE_DEFAULT_OPENING_HOUR: "9"
       VITE_DEFAULT_CLOSING_HOUR: "22"
