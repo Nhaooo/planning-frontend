@@ -1,11 +1,19 @@
 import { FC } from 'react'
-import { Calendar, Undo, Redo, Download, Copy } from 'lucide-react'
+import { Calendar, Undo, Redo, Download, Copy, Users, Grid3X3 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
+import { useAuthStore } from '../store/authStore'
 import EmployeeSelector from './EmployeeSelector'
 import WeekSelector from './WeekSelector'
 import SaveIndicator from './SaveIndicator'
+import UserInfo from './UserInfo'
 
-const Header: FC = () => {
+interface HeaderProps {
+  currentView: 'planning' | 'employees'
+  onViewChange: (view: 'planning' | 'employees') => void
+  onLoginClick: () => void
+}
+
+const Header: FC<HeaderProps> = ({ currentView, onViewChange, onLoginClick }) => {
   const { 
     selectedEmployeeId,
     selectedWeekKind,
@@ -15,6 +23,8 @@ const Header: FC = () => {
     undo,
     redo
   } = usePlanningStore()
+  
+  const { isAdmin } = useAuthStore()
 
   const handleDuplicateFromType = () => {
     // TODO: Implémenter la duplication depuis la semaine type
@@ -43,36 +53,71 @@ const Header: FC = () => {
             </div>
           </div>
 
-          {/* Sélecteurs centraux */}
-          <div className="flex items-center space-x-4">
-            <EmployeeSelector />
-            <WeekSelector />
+          {/* Navigation et sélecteurs */}
+          <div className="flex items-center space-x-6">
+            {/* Navigation des vues (Admin seulement) */}
+            {isAdmin() && (
+              <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => onViewChange('planning')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'planning'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                  <span>Planning</span>
+                </button>
+                <button
+                  onClick={() => onViewChange('employees')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    currentView === 'employees'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>Employés</span>
+                </button>
+              </div>
+            )}
+
+            {/* Sélecteurs (seulement en vue planning) */}
+            {currentView === 'planning' && (
+              <div className="flex items-center space-x-4">
+                <EmployeeSelector />
+                <WeekSelector />
+              </div>
+            )}
           </div>
 
           {/* Actions et indicateurs */}
           <div className="flex items-center space-x-3">
-            {/* Undo/Redo */}
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={undo}
-                disabled={undoStack.length === 0}
-                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Annuler (Ctrl+Z)"
-              >
-                <Undo className="h-4 w-4" />
-              </button>
-              <button
-                onClick={redo}
-                disabled={redoStack.length === 0}
-                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Rétablir (Ctrl+Y)"
-              >
-                <Redo className="h-4 w-4" />
-              </button>
-            </div>
+            {/* Undo/Redo (seulement en vue planning) */}
+            {currentView === 'planning' && (
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={undo}
+                  disabled={undoStack.length === 0}
+                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Annuler (Ctrl+Z)"
+                >
+                  <Undo className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={redo}
+                  disabled={redoStack.length === 0}
+                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Rétablir (Ctrl+Y)"
+                >
+                  <Redo className="h-4 w-4" />
+                </button>
+              </div>
+            )}
 
-            {/* Actions */}
-            {selectedEmployeeId && (
+            {/* Actions planning */}
+            {currentView === 'planning' && selectedEmployeeId && (
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleDuplicateFromType}
@@ -94,8 +139,11 @@ const Header: FC = () => {
               </div>
             )}
 
-            {/* Indicateur de sauvegarde */}
-            <SaveIndicator />
+            {/* Indicateur de sauvegarde (seulement en vue planning) */}
+            {currentView === 'planning' && <SaveIndicator />}
+
+            {/* Informations utilisateur */}
+            <UserInfo />
           </div>
         </div>
 

@@ -160,3 +160,39 @@ export interface AppConfig {
   autoSaveDelay: number
   maxUndoLevels: number
 }
+
+// Types pour l'authentification
+export interface User {
+  id: number
+  type: 'admin' | 'employee'
+  name: string
+  slug?: string
+  token: string
+  expiresAt: string
+}
+
+export interface LoginCredentials {
+  pin?: string
+  employeeSlug?: string
+}
+
+export interface AuthState {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  error: string | null
+}
+
+// Types pour les rôles et permissions
+export type UserRole = 'admin' | 'employee'
+
+export interface Permission {
+  canViewAllEmployees: boolean
+  canEditAllEmployees: boolean
+  canCreateEmployees: boolean
+  canDeleteEmployees: boolean
+  canViewOwnPlanning: boolean
+  canEditOwnPlanning: boolean
+  canViewBackups: boolean
+  canCreateBackups: boolean
+}

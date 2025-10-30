@@ -148,11 +148,31 @@ export const legendService = {
 
 // Service d'authentification
 export const authService = {
-  async login(pin: string): Promise<{ access_token: string; token_type: string }> {
+  async login(pin: string): Promise<{ 
+    access_token: string; 
+    token_type: string;
+    user_type: string;
+    user_name: string;
+    user_id: number;
+  }> {
     const api = new ApiService()
-    return api.request('/auth/login', {
+    return api.request('/auth/login/admin', {
       method: 'POST',
       body: JSON.stringify({ pin }),
+    })
+  },
+
+  async loginEmployee(employeeSlug: string): Promise<{ 
+    access_token: string; 
+    token_type: string;
+    user_type: string;
+    user_name: string;
+    user_id: number;
+  }> {
+    const api = new ApiService()
+    return api.request('/auth/login/employee', {
+      method: 'POST',
+      body: JSON.stringify({ employee_slug: employeeSlug }),
     })
   }
 }
