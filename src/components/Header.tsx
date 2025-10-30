@@ -10,10 +10,9 @@ import UserInfo from './UserInfo'
 interface HeaderProps {
   currentView: 'planning' | 'employees'
   onViewChange: (view: 'planning' | 'employees') => void
-  onLoginClick: () => void
 }
 
-const Header: FC<HeaderProps> = ({ currentView, onViewChange, onLoginClick }) => {
+const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
   const { 
     selectedEmployeeId,
     selectedWeekKind,

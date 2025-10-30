@@ -111,7 +111,6 @@ function App() {
       <Header 
         currentView={currentView}
         onViewChange={setCurrentView}
-        onLoginClick={() => setShowLoginModal(true)}
       />
       
       <main className="container mx-auto px-4 py-6">
