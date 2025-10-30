@@ -1,6 +1,6 @@
 import { FC, useEffect, useState, useRef, useCallback } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { Plus, Clock, Edit, Trash2, GripVertical } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Plus, Clock, Edit, Trash2 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { weekService, slotService } from '../services/api'
 import { generateTimeSlots, getDayNames, getWeekDates, getMondayOfWeek } from '../utils/timeUtils'
@@ -29,11 +29,12 @@ const PlanningGrid: FC = () => {
     setSaveStatus
   } = usePlanningStore()
 
+  const queryClient = useQueryClient()
   const gridRef = useRef<HTMLDivElement>(null)
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newSlotData, setNewSlotData] = useState<Partial<SlotFormData> | null>(null)
-  const [dragState, setDragState] = useState<DragState>({
+  const [dragState] = useState<DragState>({
     isDragging: false,
     draggedSlot: null,
     dragOffset: { x: 0, y: 0 },
@@ -53,50 +54,86 @@ const PlanningGrid: FC = () => {
   // Charger les données de la semaine
   const { data, isLoading, error, refetch } = useQuery<WeekResponse[] | null>({
     queryKey: ['week', selectedEmployeeId, selectedWeekKind, selectedVacationPeriod, selectedWeekStart],
-    queryFn: () => {
-      if (!selectedEmployeeId) return null
+    queryFn: async () => {
+      if (!selectedEmployeeId) {
+        console.log('❌ Pas d\'employé sélectionné')
+        return null
+      }
       
-      return weekService.getWeeks({
+      console.log('📊 Chargement semaine pour employé:', selectedEmployeeId)
+      const result = await weekService.getWeeks({
         employeeId: selectedEmployeeId,
         kind: selectedWeekKind,
         vacation: selectedVacationPeriod,
         weekStart: selectedWeekStart
       })
+      console.log('📊 Données semaine reçues:', result)
+      return result
     },
     enabled: !!selectedEmployeeId
   })
 
-  // Mutations pour les créneaux
+  // Mutation pour créer un créneau - VERSION SIMPLE ET ROBUSTE
   const createSlotMutation = useMutation({
-    mutationFn: ({ weekId, slot }: { weekId: number; slot: SlotFormData }) => {
-      console.log('🚀 Création créneau:', { weekId, slot })
-      return slotService.createSlot(weekId, slot)
+    mutationFn: async (slotData: SlotFormData) => {
+      console.log('🚀 === DÉBUT CRÉATION CRÉNEAU ===')
+      console.log('📝 Données à créer:', slotData)
+      
+      if (!currentWeek) {
+        console.error('❌ Pas de semaine courante')
+        throw new Error('Aucune semaine sélectionnée')
+      }
+
+      console.log('📅 Semaine courante:', currentWeek.week.id)
+      console.log('🔗 URL API:', `${(import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'}/weeks/${currentWeek.week.id}/slots`)
+      
+      // Appel API direct avec logs détaillés
+      const result = await slotService.createSlot(currentWeek.week.id, slotData)
+      console.log('✅ Créneau créé avec succès:', result)
+      console.log('🚀 === FIN CRÉATION CRÉNEAU ===')
+      
+      return result
     },
     onMutate: () => {
-      console.log('⏳ Début création...')
+      console.log('⏳ Début mutation création...')
       setSaveStatus('saving')
     },
-    onSuccess: (data) => {
-      console.log('✅ Créneau créé avec succès:', data)
+    onSuccess: (newSlot) => {
+      console.log('🎉 Succès création, nouveau créneau:', newSlot)
       setSaveStatus('saved')
+      
+      // Forcer le rechargement des données
+      console.log('🔄 Rechargement des données...')
       refetch()
+      
+      // Invalider le cache pour forcer un refresh
+      queryClient.invalidateQueries({ queryKey: ['week'] })
+      
       setTimeout(() => setSaveStatus('idle'), 2000)
     },
     onError: (error) => {
       console.error('❌ Erreur création:', error)
       setSaveStatus('error')
+      alert(`Erreur lors de la création: ${error.message}`)
     }
   })
 
+  // Mutation pour modifier un créneau
   const updateSlotMutation = useMutation({
-    mutationFn: ({ weekId, slotId, slot }: { weekId: number; slotId: number; slot: Partial<SlotFormData> }) => {
-      console.log('🔄 Modification créneau:', { weekId, slotId, slot })
-      return slotService.updateSlot(weekId, slotId, slot)
+    mutationFn: async ({ slotId, slotData }: { slotId: number; slotData: Partial<SlotFormData> }) => {
+      console.log('🔄 Modification créneau:', slotId, slotData)
+      
+      if (!currentWeek) {
+        throw new Error('Aucune semaine sélectionnée')
+      }
+
+      return await slotService.updateSlot(currentWeek.week.id, slotId, slotData)
     },
     onMutate: () => setSaveStatus('saving'),
     onSuccess: () => {
       setSaveStatus('saved')
       refetch()
+      queryClient.invalidateQueries({ queryKey: ['week'] })
       setTimeout(() => setSaveStatus('idle'), 2000)
     },
     onError: (error) => {
@@ -105,15 +142,22 @@ const PlanningGrid: FC = () => {
     }
   })
 
+  // Mutation pour supprimer un créneau
   const deleteSlotMutation = useMutation({
-    mutationFn: ({ weekId, slotId }: { weekId: number; slotId: number }) => {
-      console.log('🗑️ Suppression créneau:', { weekId, slotId })
-      return slotService.deleteSlot(weekId, slotId)
+    mutationFn: async (slotId: number) => {
+      console.log('🗑️ Suppression créneau:', slotId)
+      
+      if (!currentWeek) {
+        throw new Error('Aucune semaine sélectionnée')
+      }
+
+      return await slotService.deleteSlot(currentWeek.week.id, slotId)
     },
     onMutate: () => setSaveStatus('saving'),
     onSuccess: () => {
       setSaveStatus('saved')
       refetch()
+      queryClient.invalidateQueries({ queryKey: ['week'] })
       setTimeout(() => setSaveStatus('idle'), 2000)
     },
     onError: (error) => {
@@ -125,33 +169,38 @@ const PlanningGrid: FC = () => {
   // Gérer les données
   useEffect(() => {
     if (data && data.length > 0) {
-      console.log('📊 Données reçues:', data[0])
+      console.log('📊 Mise à jour semaine courante:', data[0])
       setCurrentWeek(data[0])
     }
   }, [data, setCurrentWeek])
 
-  // Gestionnaires d'événements
+  // Gestionnaire de clic sur cellule vide - VERSION SIMPLIFIÉE
   const handleCellClick = useCallback((dayIndex: number, timeSlot: TimeSlot) => {
     if (dragState.isDragging) return
 
-    console.log('🎯 Clic cellule:', { dayIndex, timeSlot })
+    console.log('🎯 === CLIC CELLULE POUR CRÉATION ===')
+    console.log('📅 Jour:', dayIndex, '⏰ Heure:', timeSlot.label)
+    console.log('🔢 Minutes totales:', timeSlot.totalMinutes)
 
-    const slotData = {
+    const slotData: Partial<SlotFormData> = {
       day_index: dayIndex,
       start_min: timeSlot.totalMinutes,
       duration_min: 60, // 1 heure par défaut
       title: '',
-      category: 'a' as const,
+      category: 'a',
       comment: ''
     }
 
-    console.log('📝 Données nouveau créneau:', slotData)
+    console.log('📝 Données préparées pour modal:', slotData)
     
     setNewSlotData(slotData)
     setSelectedSlot(null)
     setIsModalOpen(true)
+    
+    console.log('🎯 === MODAL OUVERT POUR CRÉATION ===')
   }, [dragState.isDragging])
 
+  // Gestionnaire de clic sur créneau existant
   const handleSlotClick = useCallback((slot: Slot, e: React.MouseEvent) => {
     e.stopPropagation()
     if (dragState.isDragging) return
@@ -162,24 +211,22 @@ const PlanningGrid: FC = () => {
     setIsModalOpen(true)
   }, [dragState.isDragging])
 
+  // Gestionnaire de suppression
   const handleSlotDelete = useCallback(async (slot: Slot, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!currentWeek) return
 
     console.log('🗑️ Demande suppression:', slot)
 
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce créneau ?')) {
       try {
-        await deleteSlotMutation.mutateAsync({
-          weekId: currentWeek.week.id,
-          slotId: slot.id
-        })
+        await deleteSlotMutation.mutateAsync(slot.id)
       } catch (error) {
         console.error('Erreur suppression:', error)
       }
     }
-  }, [currentWeek, deleteSlotMutation])
+  }, [deleteSlotMutation])
 
+  // Gestionnaire de fermeture modal
   const handleModalClose = useCallback(() => {
     console.log('❌ Fermeture modal')
     setIsModalOpen(false)
@@ -187,36 +234,39 @@ const PlanningGrid: FC = () => {
     setNewSlotData(null)
   }, [])
 
+  // Gestionnaire de sauvegarde - VERSION ROBUSTE
   const handleModalSave = useCallback(async (data: SlotFormData) => {
-    if (!currentWeek) {
-      console.error('❌ Pas de semaine courante')
-      return
-    }
-
-    console.log('💾 Sauvegarde créneau:', data)
+    console.log('💾 === DÉBUT SAUVEGARDE ===')
+    console.log('📝 Données reçues du modal:', data)
 
     try {
       if (selectedSlot) {
         // Modification d'un créneau existant
-        console.log('🔄 Modification créneau existant')
+        console.log('🔄 Mode modification, créneau:', selectedSlot.id)
         await updateSlotMutation.mutateAsync({
-          weekId: currentWeek.week.id,
           slotId: selectedSlot.id,
-          slot: data
+          slotData: data
         })
       } else {
         // Création d'un nouveau créneau
-        console.log('🆕 Création nouveau créneau')
-        await createSlotMutation.mutateAsync({
-          weekId: currentWeek.week.id,
-          slot: data
-        })
+        console.log('🆕 Mode création')
+        console.log('📊 Semaine courante disponible:', !!currentWeek)
+        
+        if (!currentWeek) {
+          console.error('❌ Pas de semaine courante pour création')
+          alert('Erreur: Aucune semaine sélectionnée')
+          return
+        }
+
+        await createSlotMutation.mutateAsync(data)
       }
+      
       handleModalClose()
+      console.log('💾 === SAUVEGARDE TERMINÉE ===')
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde:', error)
     }
-  }, [currentWeek, selectedSlot, updateSlotMutation, createSlotMutation, handleModalClose])
+  }, [selectedSlot, currentWeek, updateSlotMutation, createSlotMutation, handleModalClose])
 
   // Fonctions utilitaires
   const getSlotPosition = useCallback((startMin: number, durationMin: number) => {
@@ -235,162 +285,12 @@ const PlanningGrid: FC = () => {
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
   }, [])
 
-  // Fonctions de calcul pour le drag & drop
-  const getPositionFromCoordinates = useCallback((clientX: number, clientY: number) => {
-    if (!gridRef.current) return null
-
-    const gridRect = gridRef.current.getBoundingClientRect()
-    const cellHeight = 64
-    const cellWidth = (gridRect.width - 80) / 7 // 80px pour la colonne des heures
-
-    const dayIndex = Math.floor((clientX - gridRect.left - 80) / cellWidth)
-    const timeIndex = Math.floor((clientY - gridRect.top) / cellHeight)
-
-    if (dayIndex < 0 || dayIndex >= 7 || timeIndex < 0 || timeIndex >= timeSlots.length) {
-      return null
-    }
-
-    const startMin = timeSlots[timeIndex].totalMinutes
-    return { dayIndex, startMin, timeIndex }
-  }, [timeSlots])
-
-  // Gestionnaires de drag & drop
+  // Drag & Drop - simplifié pour l'instant
   const handleMouseDown = useCallback((slot: Slot, e: React.MouseEvent) => {
-    if (e.button !== 0) return // Seulement clic gauche
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const offsetY = e.clientY - rect.top
-
-    // Déterminer si c'est un resize ou un drag
-    const isResizeTop = offsetY < 8
-    const isResizeBottom = offsetY > rect.height - 8
-
-    console.log('🖱️ Début drag:', { slot: slot.id, isResizeTop, isResizeBottom })
-
-    setDragState({
-      isDragging: true,
-      draggedSlot: slot,
-      dragOffset: { x: e.clientX - rect.left, y: e.clientY - rect.top },
-      isResizing: isResizeTop || isResizeBottom,
-      resizeDirection: isResizeTop ? 'top' : isResizeBottom ? 'bottom' : null,
-      originalPosition: {
-        dayIndex: slot.day_index,
-        startMin: slot.start_min,
-        durationMin: slot.duration_min
-      }
-    })
-
+    console.log('🖱️ Début drag (simplifié):', slot.id)
+    // TODO: Implémenter drag & drop complet plus tard
     e.preventDefault()
   }, [])
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!dragState.isDragging || !dragState.draggedSlot || !currentWeek) return
-
-    const position = getPositionFromCoordinates(e.clientX, e.clientY)
-    if (!position) return
-
-    if (dragState.isResizing && dragState.resizeDirection === 'bottom') {
-      // Redimensionnement par le bas
-      const newDurationMin = Math.max(15, (position.timeIndex + 1) * 15 - (dragState.draggedSlot.start_min % 60))
-      
-      // Mise à jour optimiste visuelle
-      const updatedSlots = currentWeek.slots.map(s => 
-        s.id === dragState.draggedSlot!.id 
-          ? { ...s, duration_min: newDurationMin }
-          : s
-      )
-      setCurrentWeek({ ...currentWeek, slots: updatedSlots })
-      
-    } else if (!dragState.isResizing) {
-      // Déplacement
-      const newStartMin = position.startMin
-      const newDayIndex = position.dayIndex
-      
-      // Mise à jour optimiste visuelle
-      const updatedSlots = currentWeek.slots.map(s => 
-        s.id === dragState.draggedSlot!.id 
-          ? { ...s, day_index: newDayIndex, start_min: newStartMin }
-          : s
-      )
-      setCurrentWeek({ ...currentWeek, slots: updatedSlots })
-    }
-  }, [dragState, currentWeek, getPositionFromCoordinates, setCurrentWeek])
-
-  const handleMouseUp = useCallback(async () => {
-    if (!dragState.isDragging || !dragState.draggedSlot || !currentWeek || !dragState.originalPosition) {
-      setDragState({
-        isDragging: false,
-        draggedSlot: null,
-        dragOffset: { x: 0, y: 0 },
-        isResizing: false,
-        resizeDirection: null,
-        originalPosition: null
-      })
-      return
-    }
-
-    const slot = dragState.draggedSlot
-    const original = dragState.originalPosition
-
-    // Vérifier si la position a changé
-    const hasChanged = 
-      slot.day_index !== original.dayIndex ||
-      slot.start_min !== original.startMin ||
-      slot.duration_min !== original.durationMin
-
-    if (hasChanged) {
-      console.log('💾 Sauvegarde après drag:', {
-        original,
-        new: { dayIndex: slot.day_index, startMin: slot.start_min, durationMin: slot.duration_min }
-      })
-
-      try {
-        await updateSlotMutation.mutateAsync({
-          weekId: currentWeek.week.id,
-          slotId: slot.id,
-          slot: {
-            day_index: slot.day_index,
-            start_min: slot.start_min,
-            duration_min: slot.duration_min,
-            title: slot.title,
-            category: slot.category,
-            comment: slot.comment
-          }
-        })
-      } catch (error) {
-        console.error('❌ Erreur sauvegarde drag:', error)
-        // Restaurer la position originale en cas d'erreur
-        const restoredSlots = currentWeek.slots.map(s => 
-          s.id === slot.id 
-            ? { ...s, ...original }
-            : s
-        )
-        setCurrentWeek({ ...currentWeek, slots: restoredSlots })
-      }
-    }
-
-    setDragState({
-      isDragging: false,
-      draggedSlot: null,
-      dragOffset: { x: 0, y: 0 },
-      isResizing: false,
-      resizeDirection: null,
-      originalPosition: null
-    })
-  }, [dragState, currentWeek, updateSlotMutation, setCurrentWeek])
-
-  // Event listeners pour le drag & drop
-  useEffect(() => {
-    if (dragState.isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [dragState.isDragging, handleMouseMove, handleMouseUp])
 
   if (isLoading) {
     return (
@@ -424,6 +324,13 @@ const PlanningGrid: FC = () => {
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      {/* Debug info */}
+      <div className="bg-yellow-50 border-b border-yellow-200 p-2 text-xs">
+        <strong>Debug:</strong> Employé: {selectedEmployeeId} | Semaine: {currentWeek?.week.id || 'Aucune'} | 
+        Créneaux: {currentWeek?.slots.length || 0} | 
+        Status: {createSlotMutation.isPending ? 'Création...' : createSlotMutation.isError ? 'Erreur' : 'Prêt'}
+      </div>
+
       {/* En-tête avec les jours */}
       <div className="grid grid-cols-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
         {/* Cellule vide pour l'alignement */}
@@ -475,6 +382,7 @@ const PlanningGrid: FC = () => {
                     key={timeIndex}
                     className="h-16 border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer group relative"
                     onClick={() => handleCellClick(dayIndex, timeSlot)}
+                    title={`Créer un créneau à ${timeSlot.label}`}
                   >
                     {/* Indicateur d'ajout au hover */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -487,14 +395,11 @@ const PlanningGrid: FC = () => {
                 {daySlots.map((slot) => {
                   const position = getSlotPosition(slot.start_min, slot.duration_min)
                   const categoryStyle = getCategoryStyle(slot.category)
-                  const isDragged = dragState.draggedSlot?.id === slot.id
                   
                   return (
                     <div
                       key={slot.id}
-                      className={`absolute left-1 right-1 rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-md hover:scale-105 z-10 group ${
-                        isDragged ? 'opacity-75 scale-105 shadow-lg' : ''
-                      }`}
+                      className="absolute left-1 right-1 rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-md hover:scale-105 z-10 group"
                       style={{
                         top: `${position.top}px`,
                         height: `${position.height}px`,
@@ -503,15 +408,6 @@ const PlanningGrid: FC = () => {
                       onClick={(e) => handleSlotClick(slot, e)}
                       onMouseDown={(e) => handleMouseDown(slot, e)}
                     >
-                      {/* Poignées de redimensionnement */}
-                      <div className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-black bg-opacity-20 rounded-t-lg" />
-                      <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 bg-black bg-opacity-20 rounded-b-lg" />
-                      
-                      {/* Poignée de déplacement */}
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100">
-                        <GripVertical className="h-3 w-3 text-black text-opacity-40" />
-                      </div>
-
                       {/* Contenu du créneau */}
                       <div className="p-2 h-full flex flex-col justify-between">
                         <div>

@@ -66,7 +66,7 @@ const ApiDiagnostic: FC = () => {
     // Test 4: Auth avec différents PINs
     addResult('auth', 'loading', 'Test authentification...')
     
-    const pinsToTest = ['1234', '0000', 'admin', '1111']
+    const pinsToTest = ['2476', '1234', '0000', 'admin', '1111']
     let authSuccess = false
     
     for (const pin of pinsToTest) {
