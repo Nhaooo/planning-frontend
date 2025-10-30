@@ -128,16 +128,23 @@ const PlanningGrid: React.FC = () => {
   })
 
   const updateSlotMutation = useMutation({
-    mutationFn: ({ slotId, slotData }: { slotId: number; slotData: SimpleSlotUpdate }) => 
-      simplePlanningApi.updateSlot(slotId, slotData),
-    onSuccess: () => {
+    mutationFn: ({ slotId, slotData }: { slotId: number; slotData: SimpleSlotUpdate }) => {
+      console.log('🔄 Début mutation updateSlot:', { slotId, slotData })
+      return simplePlanningApi.updateSlot(slotId, slotData)
+    },
+    onSuccess: (data) => {
+      console.log('✅ Créneau modifié avec succès:', data)
       queryClient.invalidateQueries({ queryKey: ['week-planning'] })
       setIsModalOpen(false)
       setSelectedSlot(null)
-      console.log('✅ Créneau modifié avec succès')
     },
     onError: (error) => {
       console.error('❌ Erreur modification créneau:', error)
+      console.error('❌ Détails erreur:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
       alert(`Erreur lors de la modification: ${error.message}`)
     }
   })
@@ -202,21 +209,34 @@ const PlanningGrid: React.FC = () => {
         const duration = draggedData.end_time - draggedData.start_time
         const endTime = startTime + duration
         
-        console.log('🎯 Déplacement créneau:', { draggedData, dayIndex, hour, date, startTime, endTime })
+        console.log('🎯 Déplacement créneau:', { 
+          draggedData, 
+          dayIndex, 
+          hour, 
+          date, 
+          startTime, 
+          endTime,
+          selectedEmployeeId,
+          employeeIdType: typeof selectedEmployeeId
+        })
+        
+        const updateData = {
+          employee_id: Number(selectedEmployeeId),
+          date: date,
+          day_of_week: dayIndex,
+          start_time: startTime,
+          end_time: endTime,
+          title: draggedData.title,
+          category: draggedData.category,
+          comment: draggedData.comment || ''
+        }
+        
+        console.log('📝 Données de mise à jour:', updateData)
         
         // Mettre à jour le créneau existant
         updateSlotMutation.mutate({
           slotId: draggedData.id,
-          slotData: {
-            employee_id: selectedEmployeeId,
-            date: date,
-            day_of_week: dayIndex,
-            start_time: startTime,
-            end_time: endTime,
-            title: draggedData.title,
-            category: draggedData.category,
-            comment: draggedData.comment
-          }
+          slotData: updateData
         })
       } else {
         // Création d'un nouveau créneau depuis la palette
