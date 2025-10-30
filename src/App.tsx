@@ -8,6 +8,7 @@ import ServerWakeupBanner from './components/ServerWakeupBanner'
 import LoginModal from './components/LoginModal'
 import EmployeeManagement from './components/EmployeeManagement'
 import ProtectedRoute from './components/ProtectedRoute'
+import ApiDiagnostic from './components/ApiDiagnostic'
 import { usePlanningStore } from './store/planningStore'
 import { useAuthStore } from './store/authStore'
 import { employeeService } from './services/api'
@@ -155,6 +156,9 @@ function App() {
         isOpen={showLoginModal} 
         onClose={() => setShowLoginModal(false)} 
       />
+
+      {/* Diagnostic API (bouton rouge en bas à droite) */}
+      <ApiDiagnostic />
     </div>
   )
 }
