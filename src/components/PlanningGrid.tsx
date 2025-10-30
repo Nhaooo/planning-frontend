@@ -233,10 +233,30 @@ const PlanningGrid: React.FC = () => {
         
         console.log('📝 Données de mise à jour:', updateData)
         
-        // Mettre à jour le créneau existant
-        updateSlotMutation.mutate({
-          slotId: draggedData.id,
-          slotData: updateData
+        // Solution alternative : supprimer l'ancien et créer un nouveau
+        // Cela évite les problèmes potentiels avec l'API PUT
+        console.log('🔄 Suppression ancien créneau et création nouveau...')
+        
+        // D'abord supprimer l'ancien créneau
+        deleteSlotMutation.mutate(draggedData.id, {
+          onSuccess: () => {
+            console.log('✅ Ancien créneau supprimé, création du nouveau...')
+            // Puis créer le nouveau créneau
+            createSlotMutation.mutate({
+              employee_id: Number(selectedEmployeeId),
+              date: date,
+              day_of_week: dayIndex,
+              start_time: startTime,
+              end_time: endTime,
+              title: draggedData.title,
+              category: draggedData.category,
+              comment: draggedData.comment || ''
+            })
+          },
+          onError: (error) => {
+            console.error('❌ Erreur suppression ancien créneau:', error)
+            alert('Erreur lors du déplacement du créneau')
+          }
         })
       } else {
         // Création d'un nouveau créneau depuis la palette
