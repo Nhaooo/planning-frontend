@@ -16,10 +16,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      # Variables d'environnement pour le build
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://planning-backend-latest.onrender.com/api/v1' }}
+      VITE_APP_TITLE: "Planning Hebdomadaire"
+      VITE_DEFAULT_OPENING_HOUR: "9"
+      VITE_DEFAULT_CLOSING_HOUR: "22"
       # Empêche CRA/TS de casser le build sur warnings/erreurs de type
       CI: false
       TSC_COMPILE_ON_ERROR: true
-      VITE_CHECK_TYPES: "0"   # si un plugin checker est présent, on le désactive via variable
+      VITE_CHECK_TYPES: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
