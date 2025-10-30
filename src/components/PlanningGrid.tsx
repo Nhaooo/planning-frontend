@@ -175,10 +175,20 @@ const PlanningGrid: React.FC = () => {
     setIsModalOpen(true)
   }
 
+  // État pour tracker le type de drag en cours
+  const [dragType, setDragType] = useState<'palette' | 'existing' | null>(null)
+
   // Gestionnaires drag & drop
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
+    e.stopPropagation()
+    
+    // Toujours autoriser le drop
+    if (dragType === 'existing') {
+      e.dataTransfer.dropEffect = 'move'
+    } else {
+      e.dataTransfer.dropEffect = 'copy'
+    }
     
     // Ajouter une classe pour le feedback visuel
     const target = e.currentTarget as HTMLElement
@@ -192,17 +202,25 @@ const PlanningGrid: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, dayIndex: number, hour: number) => {
     e.preventDefault()
+    e.stopPropagation()
+    
+    console.log('🎯 Drop détecté sur:', { dayIndex, hour })
     
     // Nettoyer le feedback visuel
     const target = e.currentTarget as HTMLElement
     target.classList.remove('drag-over')
     
-    if (!selectedEmployeeId) return
+    if (!selectedEmployeeId) {
+      console.log('❌ Pas d\'employé sélectionné')
+      return
+    }
     
     try {
       const draggedData = JSON.parse(e.dataTransfer.getData('application/json'))
       const date = addDaysToDate(displayWeekStart, dayIndex)
       const startTime = hour * 60
+      
+      console.log('📦 Données draggées:', draggedData)
       
       if (draggedData.isExistingSlot) {
         // Déplacement d'un créneau existant
@@ -292,6 +310,9 @@ const PlanningGrid: React.FC = () => {
   const handleSlotDragStart = (e: React.DragEvent, slot: SimpleSlot) => {
     e.stopPropagation()
     
+    console.log('🎯 Début drag créneau existant:', slot)
+    setDragType('existing')
+    
     // Stocker les données du créneau pour le déplacement
     const slotData = {
       ...slot,
@@ -307,6 +328,9 @@ const PlanningGrid: React.FC = () => {
   }
 
   const handleSlotDragEnd = (e: React.DragEvent) => {
+    console.log('🎯 Fin drag créneau')
+    setDragType(null)
+    
     const target = e.target as HTMLElement
     target.classList.remove('dragging')
   }
