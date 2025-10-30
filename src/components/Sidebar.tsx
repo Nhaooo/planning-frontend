@@ -4,6 +4,7 @@ import WeekTotalsCard from './WeekTotalsCard'
 import CategoryRepartitionCard from './CategoryRepartitionCard'
 import WeekNotesCard from './WeekNotesCard'
 import CategoryLegendCard from './CategoryLegendCard'
+import BlockPalette from './BlockPalette'
 
 const Sidebar: FC = () => {
   const { currentWeek } = usePlanningStore()
@@ -22,22 +23,31 @@ const Sidebar: FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Palette de blocs drag & drop */}
+      <BlockPalette />
+
       {/* Totaux de la semaine */}
-      <WeekTotalsCard 
-        totals={currentWeek.totals}
-        weekStartDate={currentWeek.week.week_start_date}
-      />
+      {currentWeek && (
+        <WeekTotalsCard 
+          totals={currentWeek.totals}
+          weekStartDate={currentWeek.week.week_start_date}
+        />
+      )}
 
       {/* Répartition par catégories */}
-      <CategoryRepartitionCard 
-        repartition={currentWeek.repartition}
-      />
+      {currentWeek && (
+        <CategoryRepartitionCard 
+          repartition={currentWeek.repartition}
+        />
+      )}
 
       {/* Notes et commentaires */}
-      <WeekNotesCard 
-        notes={currentWeek.notes}
-        weekId={currentWeek.week.id}
-      />
+      {currentWeek && (
+        <WeekNotesCard 
+          notes={currentWeek.notes}
+          weekId={currentWeek.week.id}
+        />
+      )}
 
       {/* Légende des catégories */}
       <CategoryLegendCard />
