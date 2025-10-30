@@ -1,225 +1,219 @@
-import { FC, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { Slot, SlotFormData } from '../types'
-import { minutesToTime, timeToMinutes } from '../utils/timeUtils'
-import { getAllCategories, DEFAULT_CATEGORY_LEGEND } from '../utils/categoryUtils'
+import { SimpleSlot } from '../services/simplePlanningApi'
 
 interface SlotModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (data: SlotFormData) => void
-  slot?: Slot | null
-  initialData?: Partial<SlotFormData> | null
+  slot?: SimpleSlot | null
+  defaultStartTime?: string
+  isLoading?: boolean
 }
 
-const slotSchema = z.object({
-  title: z.string().min(1, 'Le titre est requis').max(200, 'Le titre est trop long'),
-  category: z.enum(['a', 'p', 'e', 'c', 'o', 'l', 'm', 's'], {
-    required_error: 'La catégorie est requise'
-  }),
-  comment: z.string().max(500, 'Le commentaire est trop long').optional(),
-  start_time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Format d\'heure invalide'),
-  duration_min: z.number().min(15, 'Durée minimum 15 minutes').max(720, 'Durée maximum 12 heures'),
-  day_index: z.number().min(0).max(6)
-})
+interface SlotFormData {
+  title: string
+  category: string
+  comment: string
+  startTime: string
+  endTime: string
+}
 
-type SlotFormFields = z.infer<typeof slotSchema>
+const CATEGORIES = [
+  { code: 'a', label: 'Administratif/gestion', color: '#3B82F6' },
+  { code: 'p', label: 'Prestation/événement', color: '#10B981' },
+  { code: 'e', label: 'École d\'escalade', color: '#F59E0B' },
+  { code: 'c', label: 'Groupes compétition', color: '#EF4444' },
+  { code: 'o', label: 'Ouverture', color: '#8B5CF6' },
+  { code: 'l', label: 'Loisir', color: '#06B6D4' },
+  { code: 'm', label: 'Mise en place / Rangement', color: '#6B7280' },
+  { code: 's', label: 'Santé Adulte/Enfant', color: '#EC4899' }
+]
 
-const SlotModal: FC<SlotModalProps> = ({
+const minutesToTime = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+}
+
+const SlotModal: React.FC<SlotModalProps> = ({
   isOpen,
   onClose,
   onSave,
   slot,
-  initialData
+  defaultStartTime,
+  isLoading = false
 }) => {
-  const categories = getAllCategories(DEFAULT_CATEGORY_LEGEND)
-  
-  const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    formState: { errors, isValid }
-  } = useForm<SlotFormFields>({
-    resolver: zodResolver(slotSchema),
-    mode: 'onChange'
+  const [formData, setFormData] = useState<SlotFormData>({
+    title: '',
+    category: 'a',
+    comment: '',
+    startTime: defaultStartTime || '09:00',
+    endTime: '10:00'
   })
-
-  const selectedCategory = watch('category')
 
   // Initialiser le formulaire
   useEffect(() => {
-    if (isOpen) {
-      if (slot) {
-        // Mode édition
-        reset({
-          title: slot.title,
-          category: slot.category,
-          comment: slot.comment || '',
-          start_time: minutesToTime(slot.start_min),
-          duration_min: slot.duration_min,
-          day_index: slot.day_index
-        })
-      } else if (initialData) {
-        // Mode création avec données initiales
-        reset({
-          title: '',
-          category: initialData.category || 'o',
-          comment: '',
-          start_time: initialData.start_min ? minutesToTime(initialData.start_min) : '09:00',
-          duration_min: initialData.duration_min || 60,
-          day_index: initialData.day_index || 0
-        })
-      }
+    if (slot) {
+      // Mode édition
+      setFormData({
+        title: slot.title,
+        category: slot.category,
+        comment: slot.comment || '',
+        startTime: minutesToTime(slot.start_time),
+        endTime: minutesToTime(slot.end_time)
+      })
+    } else {
+      // Mode création
+      setFormData({
+        title: '',
+        category: 'a',
+        comment: '',
+        startTime: defaultStartTime || '09:00',
+        endTime: '10:00'
+      })
     }
-  }, [isOpen, slot, initialData, reset])
+  }, [slot, defaultStartTime])
 
-  const onSubmit = (data: SlotFormFields) => {
-    const formData: SlotFormData = {
-      title: data.title,
-      category: data.category,
-      comment: data.comment,
-      day_index: data.day_index,
-      start_min: timeToMinutes(data.start_time),
-      duration_min: data.duration_min
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validation simple
+    if (!formData.title.trim()) {
+      alert('Le titre est requis')
+      return
+    }
+    
+    if (formData.startTime >= formData.endTime) {
+      alert('L\'heure de fin doit être après l\'heure de début')
+      return
     }
     
     onSave(formData)
   }
 
-  const handleClose = () => {
-    reset()
-    onClose()
+  const handleInputChange = (field: keyof SlotFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* En-tête */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold">
             {slot ? 'Modifier le créneau' : 'Nouveau créneau'}
           </h2>
           <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full"
+            disabled={isLoading}
           >
-            <X className="h-5 w-5" />
+            <X size={20} />
           </button>
         </div>
 
         {/* Formulaire */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Titre */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Titre *
             </label>
             <input
               type="text"
-              {...register('title')}
-              className="form-input"
-              placeholder="Ex: Cours d'escalade débutants"
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ex: Cours débutants"
+              required
+              disabled={isLoading}
             />
-            {errors.title && (
-              <p className="text-red-600 text-sm mt-1">{errors.title.message}</p>
-            )}
           </div>
 
           {/* Catégorie */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Catégorie *
             </label>
-            <select {...register('category')} className="form-select">
-              {categories.map((category) => (
-                <option key={category.code} value={category.code}>
-                  {category.label}
+            <select
+              value={formData.category}
+              onChange={(e) => handleInputChange('category', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+              disabled={isLoading}
+            >
+              {CATEGORIES.map(cat => (
+                <option key={cat.code} value={cat.code}>
+                  {cat.label}
                 </option>
               ))}
             </select>
-            {selectedCategory && (
-              <div className="mt-2 flex items-center space-x-2">
-                <div
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: categories.find(c => c.code === selectedCategory)?.color }}
-                />
-                <span className="text-sm text-gray-600">
-                  {categories.find(c => c.code === selectedCategory)?.label}
-                </span>
-              </div>
-            )}
           </div>
 
-          {/* Heure et durée */}
+          {/* Horaires */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Heure de début *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Début *
               </label>
               <input
                 type="time"
-                {...register('start_time')}
-                className="form-input"
+                value={formData.startTime}
+                onChange={(e) => handleInputChange('startTime', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                disabled={isLoading}
               />
-              {errors.start_time && (
-                <p className="text-red-600 text-sm mt-1">{errors.start_time.message}</p>
-              )}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Durée (minutes) *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fin *
               </label>
-              <select {...register('duration_min', { valueAsNumber: true })} className="form-select">
-                <option value={15}>15 min</option>
-                <option value={30}>30 min</option>
-                <option value={45}>45 min</option>
-                <option value={60}>1h</option>
-                <option value={90}>1h30</option>
-                <option value={120}>2h</option>
-                <option value={180}>3h</option>
-                <option value={240}>4h</option>
-              </select>
+              <input
+                type="time"
+                value={formData.endTime}
+                onChange={(e) => handleInputChange('endTime', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                disabled={isLoading}
+              />
             </div>
           </div>
 
           {/* Commentaire */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Commentaire
             </label>
             <textarea
-              {...register('comment')}
+              value={formData.comment}
+              onChange={(e) => handleInputChange('comment', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
-              className="form-input"
-              placeholder="Informations complémentaires..."
+              placeholder="Commentaire optionnel..."
+              disabled={isLoading}
             />
-            {errors.comment && (
-              <p className="text-red-600 text-sm mt-1">{errors.comment.message}</p>
-            )}
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end space-x-3 pt-4">
+          {/* Boutons */}
+          <div className="flex justify-end space-x-3 pt-4">
             <button
               type="button"
-              onClick={handleClose}
-              className="btn-secondary"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              disabled={isLoading}
             >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={!isValid}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50"
+              disabled={isLoading}
             >
-              {slot ? 'Modifier' : 'Créer'}
+              {isLoading ? 'Sauvegarde...' : 'Sauvegarder'}
             </button>
           </div>
         </form>
