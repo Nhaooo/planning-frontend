@@ -48,16 +48,32 @@ class ApiService {
       ...options,
     }
 
+    console.log('🌐 Requête API:', { url, method: config.method || 'GET', headers: config.headers })
+
     try {
       const response = await fetch(url, config)
       
+      console.log('📡 Réponse reçue:', { 
+        status: response.status, 
+        statusText: response.statusText, 
+        ok: response.ok,
+        url: response.url 
+      })
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
-        throw new Error(errorData.detail || `HTTP ${response.status}`)
+        console.error('❌ Erreur API:', { status: response.status, errorData })
+        const error = new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`) as any
+        error.status = response.status
+        error.url = response.url
+        throw error
       }
 
-      return await response.json()
+      const data = await response.json()
+      console.log('✅ Données reçues:', data)
+      return data
     } catch (error) {
+      console.error('❌ Erreur dans request:', error)
       if (error instanceof Error) {
         throw error
       }

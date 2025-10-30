@@ -47,9 +47,24 @@ export const simplePlanningApi = {
   async getWeekPlanning(employeeId: number, weekStart: string): Promise<WeekPlanningResponse> {
     console.log('📅 Récupération planning semaine:', { employeeId, weekStart })
     
-    return apiService.request(`/planning/week?employee_id=${employeeId}&week_start=${weekStart}`, {
-      method: 'GET'
-    })
+    const url = `/planning/week?employee_id=${employeeId}&week_start=${weekStart}`
+    console.log('🌐 URL complète:', url)
+    
+    try {
+      console.log('📡 Envoi de la requête...')
+      const result = await apiService.request<WeekPlanningResponse>(url, {
+         method: 'GET'
+       })
+       console.log('✅ Réponse reçue:', result)
+       return result
+     } catch (error) {
+       console.error('❌ Erreur dans getWeekPlanning:', error)
+       console.error('❌ Type d\'erreur:', typeof error)
+       if (error && typeof error === 'object') {
+         console.error('❌ Propriétés de l\'erreur:', Object.keys(error))
+       }
+       throw error
+     }
   },
 
   async createSlot(slotData: SimpleSlotCreate): Promise<SimpleSlot> {

@@ -48,13 +48,42 @@ const PlanningGrid: React.FC = () => {
   // Query pour récupérer le planning de la semaine
   const { data: weekPlanning, isLoading, error } = useQuery({
     queryKey: ['week-planning', selectedEmployeeId, currentWeekStart],
-    queryFn: () => selectedEmployeeId ? simplePlanningApi.getWeekPlanning(selectedEmployeeId, currentWeekStart) : null,
+    queryFn: async () => {
+      if (!selectedEmployeeId) {
+        console.log('❌ Pas d\'employé sélectionné')
+        return null
+      }
+      
+      console.log('📡 Tentative de récupération planning:', { 
+        employeeId: selectedEmployeeId, 
+        weekStart: currentWeekStart 
+      })
+      
+      try {
+        const result = await simplePlanningApi.getWeekPlanning(selectedEmployeeId, currentWeekStart)
+        console.log('✅ Planning récupéré avec succès:', result)
+        return result
+      } catch (err) {
+         console.error('❌ Erreur lors de la récupération du planning:', err)
+         console.error('❌ Détails de l\'erreur:', {
+           message: err instanceof Error ? err.message : 'Erreur inconnue',
+           status: (err as any)?.status,
+           url: (err as any)?.url
+         })
+         throw err
+       }
+    },
     enabled: !!selectedEmployeeId,
     staleTime: 30000,
     retry: 1
   })
 
-  console.log('📊 Planning data:', weekPlanning)
+  console.log('📊 État de la query:', { 
+    isLoading, 
+    error: error?.message, 
+    hasData: !!weekPlanning,
+    dataLength: weekPlanning?.slots?.length 
+  })
 
   // Mutations
   const createSlotMutation = useMutation({
@@ -191,6 +220,24 @@ const PlanningGrid: React.FC = () => {
     setCurrentWeekStart(getWeekStart(new Date()))
   }
 
+  // Fonction de test API
+  const testApi = async () => {
+    if (!selectedEmployeeId) {
+      alert('Sélectionnez d\'abord un employé')
+      return
+    }
+    
+    console.log('🧪 Test API manuel...')
+    try {
+      const result = await simplePlanningApi.getWeekPlanning(selectedEmployeeId, currentWeekStart)
+      console.log('✅ Test API réussi:', result)
+      alert('Test API réussi ! Voir la console pour les détails.')
+    } catch (error) {
+       console.error('❌ Test API échoué:', error)
+       alert(`Test API échoué: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
+     }
+  }
+
   if (!selectedEmployeeId) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -234,6 +281,33 @@ const PlanningGrid: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* Panneau de debug visible */}
+      <div className="bg-yellow-100 border border-yellow-400 p-4 rounded-lg">
+        <h3 className="font-bold text-yellow-800 mb-2">🔍 Debug Info</h3>
+        <div className="text-sm space-y-1">
+          <div><strong>Employé sélectionné:</strong> {selectedEmployeeId || 'Aucun'}</div>
+          <div><strong>Semaine courante:</strong> {currentWeekStart}</div>
+          <div><strong>État de chargement:</strong> {isLoading ? 'Chargement...' : 'Terminé'}</div>
+          <div><strong>Erreur:</strong> {error ? ((error as any) instanceof Error ? (error as Error).message : String(error)) : 'Aucune'}</div>
+          <div><strong>Données reçues:</strong> {weekPlanning ? `${weekPlanning.slots?.length || 0} créneaux` : 'Aucune'}</div>
+          <div><strong>URL API:</strong> {selectedEmployeeId ? `/planning/week?employee_id=${selectedEmployeeId}&week_start=${currentWeekStart}` : 'N/A'}</div>
+        </div>
+        <div className="mt-3 space-x-2">
+          <button 
+            onClick={testApi}
+            className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+          >
+            🧪 Tester API
+          </button>
+          <button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['week-planning'] })}
+            className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+          >
+            🔄 Recharger
+          </button>
+        </div>
+      </div>
+
       {/* Navigation semaine */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow">
         <button 
