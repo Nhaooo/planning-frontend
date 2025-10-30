@@ -54,16 +54,8 @@ const PlanningGrid: React.FC = () => {
     switch (selectedWeekKind) {
       case 'type':
         return '2024-01-01' // Semaine type fixe
-      case 'current':
-        return getWeekStart(new Date())
-      case 'next':
-        const nextWeek = new Date()
-        nextWeek.setDate(nextWeek.getDate() + 7)
-        return getWeekStart(nextWeek)
-      case 'vacation':
-        return selectedWeekStart || getWeekStart(new Date())
       default:
-        return getWeekStart(new Date())
+        return selectedWeekStart || getWeekStart(new Date())
     }
   }
 
@@ -231,9 +223,21 @@ const PlanningGrid: React.FC = () => {
     ) || null
   }
 
+  // Fonction pour vérifier si c'est la première cellule d'un créneau
+  const isSlotStart = (slot: SimpleSlot, hour: number): boolean => {
+    const hourStart = hour * 60
+    return slot.start_time >= hourStart && slot.start_time < hourStart + 60
+  }
+
+  // Fonction pour calculer la hauteur d'un créneau en cellules
+  const getSlotHeight = (slot: SimpleSlot): number => {
+    const durationInHours = (slot.end_time - slot.start_time) / 60
+    return Math.max(1, Math.ceil(durationInHours))
+  }
+
   // Navigation semaine
   const goToPreviousWeek = () => {
-    if (selectedWeekKind === 'vacation' || selectedWeekKind === 'current' || selectedWeekKind === 'next') {
+    if (selectedWeekKind !== 'type') {
       const prevWeek = new Date(displayWeekStart)
       prevWeek.setDate(prevWeek.getDate() - 7)
       setSelectedWeekStart(getWeekStart(prevWeek))
@@ -241,7 +245,7 @@ const PlanningGrid: React.FC = () => {
   }
 
   const goToNextWeek = () => {
-    if (selectedWeekKind === 'vacation' || selectedWeekKind === 'current' || selectedWeekKind === 'next') {
+    if (selectedWeekKind !== 'type') {
       const nextWeek = new Date(displayWeekStart)
       nextWeek.setDate(nextWeek.getDate() + 7)
       setSelectedWeekStart(getWeekStart(nextWeek))
@@ -252,23 +256,7 @@ const PlanningGrid: React.FC = () => {
     setSelectedWeekStart(getWeekStart(new Date()))
   }
 
-  // Fonction de test API
-  const testApi = async () => {
-    if (!selectedEmployeeId) {
-      alert('Sélectionnez d\'abord un employé')
-      return
-    }
-    
-    console.log('🧪 Test API manuel...')
-    try {
-      const result = await simplePlanningApi.getWeekPlanning(selectedEmployeeId, displayWeekStart)
-      console.log('✅ Test API réussi:', result)
-      alert('Test API réussi ! Voir la console pour les détails.')
-    } catch (error) {
-       console.error('❌ Test API échoué:', error)
-       alert(`Test API échoué: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
-     }
-  }
+
 
   if (!selectedEmployeeId) {
     return (
@@ -313,34 +301,6 @@ const PlanningGrid: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Panneau de debug visible */}
-      <div className="bg-yellow-100 border border-yellow-400 p-4 rounded-lg">
-        <h3 className="font-bold text-yellow-800 mb-2">🔍 Debug Info</h3>
-        <div className="text-sm space-y-1">
-          <div><strong>Employé sélectionné:</strong> {selectedEmployeeId || 'Aucun'}</div>
-          <div><strong>Type de semaine:</strong> {selectedWeekKind}</div>
-          <div><strong>Période vacances:</strong> {selectedVacationPeriod || 'N/A'}</div>
-          <div><strong>Semaine affichée:</strong> {displayWeekStart}</div>
-          <div><strong>État de chargement:</strong> {isLoading ? 'Chargement...' : 'Terminé'}</div>
-          <div><strong>Erreur:</strong> {error ? ((error as any) instanceof Error ? (error as Error).message : String(error)) : 'Aucune'}</div>
-          <div><strong>Données reçues:</strong> {weekPlanning ? `${weekPlanning.slots?.length || 0} créneaux` : 'Aucune'}</div>
-          <div><strong>URL API:</strong> {selectedEmployeeId ? `/planning/week?employee_id=${selectedEmployeeId}&week_start=${displayWeekStart}` : 'N/A'}</div>
-        </div>
-        <div className="mt-3 space-x-2">
-          <button 
-            onClick={testApi}
-            className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-          >
-            🧪 Tester API
-          </button>
-          <button 
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['week-planning'] })}
-            className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
-          >
-            🔄 Recharger
-          </button>
-        </div>
-      </div>
 
       {/* Navigation semaine */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow">
@@ -354,9 +314,8 @@ const PlanningGrid: React.FC = () => {
         <div className="text-center">
           <h2 className="text-lg font-semibold">
             {selectedWeekKind === 'type' && 'Semaine type'}
-            {selectedWeekKind === 'current' && `Semaine actuelle - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
-            {selectedWeekKind === 'next' && `Semaine suivante - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
             {selectedWeekKind === 'vacation' && `Vacances ${selectedVacationPeriod} - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
+            {(selectedWeekKind === 'current' || selectedWeekKind === 'next') && `Semaine du ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
           </h2>
           <button 
             onClick={goToCurrentWeek}
@@ -399,6 +358,8 @@ const PlanningGrid: React.FC = () => {
               {/* Cellules pour chaque jour */}
               {DAYS.map((_, dayIndex) => {
                 const slot = getSlotAtTime(dayIndex, hour)
+                const shouldShowSlot = slot && isSlotStart(slot, hour)
+                const slotHeight = slot ? getSlotHeight(slot) : 1
                 
                 return (
                   <div 
@@ -410,10 +371,14 @@ const PlanningGrid: React.FC = () => {
                     style={slot ? getCellBackgroundStyle(slot.category) : {}}
                     onClick={() => slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)}
                   >
-                    {slot ? (
+                    {shouldShowSlot ? (
                       <div 
-                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden"
-                        style={getSlotStyle(slot.category)}
+                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10"
+                        style={{
+                          ...getSlotStyle(slot.category),
+                          height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
+                          minHeight: '56px'
+                        }}
                       >
                         <div className="font-medium truncate">{slot.title}</div>
                         <div className="opacity-80">
@@ -429,11 +394,11 @@ const PlanningGrid: React.FC = () => {
                           <Trash2 size={10} />
                         </button>
                       </div>
-                    ) : (
+                    ) : !slot ? (
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                         <Plus size={16} className="text-gray-400" />
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )
               })}
@@ -442,11 +407,7 @@ const PlanningGrid: React.FC = () => {
         </div>
       </div>
 
-      {/* Debug info */}
-      <div className="bg-yellow-50 p-3 rounded text-sm">
-        <strong>Debug:</strong> Employé {selectedEmployeeId} | Type {selectedWeekKind} | Semaine {displayWeekStart} | 
-        {weekPlanning?.slots?.length || 0} créneaux
-      </div>
+
 
       {/* Modal */}
       {isModalOpen && (
