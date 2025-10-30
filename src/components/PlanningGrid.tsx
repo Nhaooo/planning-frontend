@@ -193,30 +193,74 @@ const PlanningGrid: React.FC = () => {
     if (!selectedEmployeeId) return
     
     try {
-      const templateData = JSON.parse(e.dataTransfer.getData('application/json'))
+      const draggedData = JSON.parse(e.dataTransfer.getData('application/json'))
       const date = addDaysToDate(displayWeekStart, dayIndex)
       const startTime = hour * 60
-      const endTime = startTime + templateData.defaultDuration
       
-      console.log('🎯 Drop bloc:', { templateData, dayIndex, hour, date, startTime, endTime })
-      
-      // Créer directement le créneau
-      createSlotMutation.mutate({
-        employee_id: selectedEmployeeId,
-        date: date,
-        day_of_week: dayIndex,
-        start_time: startTime,
-        end_time: endTime,
-        title: templateData.title,
-        category: templateData.category,
-        comment: templateData.description || ''
-      })
+      if (draggedData.isExistingSlot) {
+        // Déplacement d'un créneau existant
+        const duration = draggedData.end_time - draggedData.start_time
+        const endTime = startTime + duration
+        
+        console.log('🎯 Déplacement créneau:', { draggedData, dayIndex, hour, date, startTime, endTime })
+        
+        // Mettre à jour le créneau existant
+        updateSlotMutation.mutate({
+          slotId: draggedData.id,
+          slotData: {
+            date: date,
+            day_of_week: dayIndex,
+            start_time: startTime,
+            end_time: endTime
+          }
+        })
+      } else {
+        // Création d'un nouveau créneau depuis la palette
+        const endTime = startTime + draggedData.defaultDuration
+        
+        console.log('🎯 Création créneau:', { draggedData, dayIndex, hour, date, startTime, endTime })
+        
+        // Créer directement le créneau
+        createSlotMutation.mutate({
+          employee_id: selectedEmployeeId,
+          date: date,
+          day_of_week: dayIndex,
+          start_time: startTime,
+          end_time: endTime,
+          title: draggedData.title,
+          category: draggedData.category,
+          comment: draggedData.description || ''
+        })
+      }
     } catch (error) {
       console.error('Erreur lors du drop:', error)
     }
-    }
+     }
 
-    const handleSlotClick = (slot: SimpleSlot) => {
+  // Gestionnaires drag & drop pour les créneaux existants
+  const handleSlotDragStart = (e: React.DragEvent, slot: SimpleSlot) => {
+    e.stopPropagation()
+    
+    // Stocker les données du créneau pour le déplacement
+    const slotData = {
+      ...slot,
+      isExistingSlot: true
+    }
+    
+    e.dataTransfer.setData('application/json', JSON.stringify(slotData))
+    e.dataTransfer.effectAllowed = 'move'
+    
+    // Ajouter une classe pour l'animation
+    const target = e.target as HTMLElement
+    target.classList.add('dragging')
+  }
+
+  const handleSlotDragEnd = (e: React.DragEvent) => {
+    const target = e.target as HTMLElement
+    target.classList.remove('dragging')
+  }
+
+     const handleSlotClick = (slot: SimpleSlot) => {
     console.log('🎯 Clic créneau:', slot)
     setSelectedSlot(slot)
     setNewSlotData(null)
@@ -286,7 +330,14 @@ const PlanningGrid: React.FC = () => {
 
   // Fonction pour calculer la hauteur d'un créneau en cellules
   const getSlotHeight = (slot: SimpleSlot): number => {
-    const durationInHours = (slot.end_time - slot.start_time) / 60
+    const durationInMinutes = slot.end_time - slot.start_time
+    
+    // Pour les créneaux de moins de 60 minutes, on ajuste visuellement
+    if (durationInMinutes < 60) {
+      return durationInMinutes / 60 // 0.5 pour 30min, 0.75 pour 45min
+    }
+    
+    const durationInHours = durationInMinutes / 60
     return Math.max(1, Math.ceil(durationInHours))
   }
 
@@ -432,12 +483,15 @@ const PlanningGrid: React.FC = () => {
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10"
+                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move"
                         style={{
                           ...getSlotStyle(slot.category),
                           height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
                           minHeight: '56px'
                         }}
+                        draggable
+                        onDragStart={(e) => handleSlotDragStart(e, slot)}
+                        onDragEnd={handleSlotDragEnd}
                       >
                         <div className="font-medium truncate">{slot.title}</div>
                         <div className="opacity-80">

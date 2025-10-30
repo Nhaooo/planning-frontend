@@ -18,10 +18,10 @@ const BLOCK_TEMPLATES: BlockTemplate[] = [
     description: 'Tâches administratives'
   },
   {
-    id: 'prestation-2h',
+    id: 'prestation-1h',
     title: 'Prestation',
     category: 'p',
-    defaultDuration: 120,
+    defaultDuration: 60,
     description: 'Événement/prestation'
   },
   {
@@ -32,17 +32,17 @@ const BLOCK_TEMPLATES: BlockTemplate[] = [
     description: 'Cours d\'escalade'
   },
   {
-    id: 'competition-3h',
+    id: 'competition-1h',
     title: 'Compétition',
     category: 'c',
-    defaultDuration: 180,
+    defaultDuration: 60,
     description: 'Entraînement compétition'
   },
   {
-    id: 'ouverture-8h',
+    id: 'ouverture-1h',
     title: 'Ouverture',
     category: 'o',
-    defaultDuration: 480,
+    defaultDuration: 60,
     description: 'Ouverture salle'
   },
   {
