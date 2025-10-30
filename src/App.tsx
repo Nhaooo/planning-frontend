@@ -125,11 +125,11 @@ function App() {
         {currentView === 'planning' && (
           <ProtectedRoute requireAuth={true}>
             {selectedEmployeeId || (user?.type === 'employee' && user.slug) ? (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-3">
+              <div className="flex flex-col xl:grid xl:grid-cols-4 gap-4 md:gap-6">
+                <div className="xl:col-span-3 order-2 xl:order-1">
                   <PlanningGrid />
                 </div>
-                <div className="lg:col-span-1">
+                <div className="xl:col-span-1 order-1 xl:order-2">
                   <Sidebar />
                 </div>
               </div>

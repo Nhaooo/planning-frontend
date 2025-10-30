@@ -111,45 +111,54 @@ const PlanningGrid: FC = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      {/* En-tête avec les jours */}
-      <div className="planning-grid">
-        {/* Cellule vide pour l'alignement */}
-        <div className="time-header">
-          <span className="text-xs">Heure</span>
-        </div>
-        
-        {/* En-têtes des jours */}
-        {dayNames.map((dayName, index) => (
-          <div key={index} className="day-header">
-            <div className="font-semibold">{dayName}</div>
-            <div className="text-xs text-gray-500 mt-1">
-              {weekDates[index].toLocaleDateString('fr-FR', { 
-                day: '2-digit', 
-                month: '2-digit' 
-              })}
+    <div className="planning-container w-full">
+      {/* Container avec scroll horizontal pour responsive */}
+      <div className="overflow-x-auto">
+        <div className="min-w-full">
+          {/* En-têtes de la grille */}
+          <div className="planning-grid mb-0 border-b-0">
+            {/* En-tête vide pour la colonne des heures */}
+            <div className="time-header">
+              <span className="hidden sm:inline">Heure</span>
+              <span className="sm:hidden">H</span>
+            </div>
+            
+            {/* En-têtes des jours */}
+            {dayNames.map((dayName, index) => (
+              <div key={index} className="day-header">
+                <div className="font-semibold">
+                  <span className="hidden md:inline">{dayName}</span>
+                  <span className="md:hidden">{dayName.slice(0, 3)}</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {weekDates[index].toLocaleDateString('fr-FR', { 
+                    day: '2-digit', 
+                    month: '2-digit' 
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Grille principale avec scroll vertical */}
+          <div className="max-h-[500px] md:max-h-[600px] overflow-y-auto custom-scrollbar">
+            <div className="planning-grid border-t-0">
+              {/* Colonne des heures */}
+              <TimeColumn timeSlots={timeSlots} />
+              
+              {/* Colonnes des jours */}
+              {Array.from({ length: 7 }, (_, dayIndex) => (
+                <DayColumn
+                  key={dayIndex}
+                  dayIndex={dayIndex}
+                  timeSlots={timeSlots}
+                  slots={currentWeek?.slots.filter(slot => slot.day_index === dayIndex) || []}
+                  onCellClick={handleCellClick}
+                  onSlotDoubleClick={handleSlotDoubleClick}
+                />
+              ))}
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Grille principale avec scroll */}
-      <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
-        <div className="planning-grid">
-          {/* Colonne des heures */}
-          <TimeColumn timeSlots={timeSlots} />
-          
-          {/* Colonnes des jours */}
-          {Array.from({ length: 7 }, (_, dayIndex) => (
-            <DayColumn
-              key={dayIndex}
-              dayIndex={dayIndex}
-              timeSlots={timeSlots}
-              slots={currentWeek?.slots.filter(slot => slot.day_index === dayIndex) || []}
-              onCellClick={handleCellClick}
-              onSlotDoubleClick={handleSlotDoubleClick}
-            />
-          ))}
         </div>
       </div>
 

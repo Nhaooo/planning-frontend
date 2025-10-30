@@ -15,23 +15,87 @@
 @layer components {
   /* Styles pour la grille de planning */
   .planning-grid {
-    @apply grid grid-cols-8 gap-0 border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm;
+    @apply grid gap-0 border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm;
+    grid-template-columns: 80px repeat(7, 1fr);
+    min-width: 800px; /* Largeur minimum pour éviter l'écrasement */
+  }
+  
+  /* Responsive pour tablettes */
+  @media (max-width: 1024px) {
+    .planning-grid {
+      grid-template-columns: 70px repeat(7, 1fr);
+      min-width: 700px;
+    }
+  }
+  
+  /* Responsive pour mobiles */
+  @media (max-width: 768px) {
+    .planning-grid {
+      grid-template-columns: 60px repeat(7, 1fr);
+      min-width: 600px;
+    }
   }
   
   .time-header {
-    @apply bg-gray-100 border-r border-gray-300 p-2 text-sm font-medium text-gray-700 sticky left-0 z-10;
+    @apply bg-gray-100 border-r border-gray-300 p-2 text-sm font-medium text-gray-700 sticky left-0 z-10 flex items-center justify-center;
+    min-height: 60px;
   }
   
   .day-header {
-    @apply bg-gray-100 border-b border-gray-300 p-3 text-sm font-semibold text-gray-800 text-center;
+    @apply bg-gray-100 border-b border-gray-300 p-2 text-sm font-semibold text-gray-800 text-center flex flex-col justify-center;
+    min-height: 60px;
+  }
+  
+  /* Responsive pour les en-têtes */
+  @media (max-width: 768px) {
+    .day-header {
+      @apply p-1 text-xs;
+      min-height: 50px;
+    }
+    
+    .time-header {
+      @apply p-1 text-xs;
+      min-height: 50px;
+    }
   }
   
   .time-slot {
-    @apply border-r border-b border-gray-200 min-h-[60px] relative hover:bg-gray-50 transition-colors;
+    @apply border-r border-b border-gray-200 relative hover:bg-gray-50 transition-colors;
+    min-height: 60px;
+  }
+  
+  /* Responsive pour les créneaux */
+  @media (max-width: 768px) {
+    .time-slot {
+      min-height: 50px;
+    }
   }
   
   .planning-slot {
     @apply absolute inset-1 rounded-md shadow-sm border-l-4 p-2 cursor-pointer transition-all hover:shadow-md;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    overflow: hidden;
+  }
+  
+  /* Responsive pour les créneaux */
+  @media (max-width: 768px) {
+    .planning-slot {
+      @apply inset-0.5 p-1 text-xs;
+      font-size: 0.65rem;
+    }
+  }
+  
+  /* Container principal responsive */
+  .planning-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden;
+  }
+  
+  /* Amélioration du scroll horizontal sur mobile */
+  @media (max-width: 768px) {
+    .planning-container {
+      @apply rounded-md shadow;
+    }
   }
   
   /* Styles pour les catégories */

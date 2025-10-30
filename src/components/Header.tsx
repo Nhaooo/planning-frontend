@@ -37,47 +37,48 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-4 py-3 md:py-4">
         <div className="flex items-center justify-between">
           {/* Logo et titre */}
-          <div className="flex items-center space-x-3">
-            <Calendar className="h-8 w-8 text-blue-600" />
+          <div className="flex items-center space-x-2 md:space-x-3">
+            <Calendar className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">
-                Planning Hebdomadaire
+              <h1 className="text-lg md:text-xl font-bold text-gray-900">
+                <span className="hidden sm:inline">Planning Hebdomadaire</span>
+                <span className="sm:hidden">Planning</span>
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs md:text-sm text-gray-500 hidden sm:block">
                 Gestion par quarts d'heure
               </p>
             </div>
           </div>
 
           {/* Navigation et sélecteurs */}
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-3 md:space-x-6">
             {/* Navigation des vues (Admin seulement) */}
             {isAdmin() && (
               <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => onViewChange('planning')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1 md:space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
                     currentView === 'planning'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   <Grid3X3 className="h-4 w-4" />
-                  <span>Planning</span>
+                  <span className="hidden sm:inline">Planning</span>
                 </button>
                 <button
                   onClick={() => onViewChange('employees')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1 md:space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
                     currentView === 'employees'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   <Users className="h-4 w-4" />
-                  <span>Employés</span>
+                  <span className="hidden sm:inline">Employés</span>
                 </button>
               </div>
             )}
