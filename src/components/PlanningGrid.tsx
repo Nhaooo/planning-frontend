@@ -1,25 +1,13 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Move } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
-import { simplePlanningApi, SimpleSlot, SimpleSlotUpdate } from '../services/simplePlanningApi'
-import SlotModal from './SlotModal'
+import { slotApi, Slot, SlotUpdate } from '../services/slotApi'
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i) // 7h à 20h
 
-// Utilitaires de conversion
-const minutesToTime = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
-}
-
-const timeToMinutes = (time: string): number => {
-  const [hours, minutes] = time.split(':').map(Number)
-  return hours * 60 + minutes
-}
-
+// Utilitaires
 const getWeekStart = (date: Date): string => {
   const d = new Date(date)
   const day = d.getDay()
@@ -39,55 +27,25 @@ const PlanningGrid: React.FC = () => {
   const queryClient = useQueryClient()
   
   const [currentWeekStart, setCurrentWeekStart] = useState(getWeekStart(new Date()))
-  const [selectedSlot, setSelectedSlot] = useState<SimpleSlot | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [newSlotData, setNewSlotData] = useState<{ date: string; dayOfWeek: number; startTime: number } | null>(null)
+  const [newSlotData, setNewSlotData] = useState<{ date: string; hour: number } | null>(null)
+  const [draggedSlot, setDraggedSlot] = useState<Slot | null>(null)
 
   console.log('🔄 PlanningGrid render - Employé:', selectedEmployeeId, 'Semaine:', currentWeekStart)
 
-  // Query pour récupérer le planning de la semaine
+  // Query pour récupérer le planning
   const { data: weekPlanning, isLoading, error } = useQuery({
     queryKey: ['week-planning', selectedEmployeeId, currentWeekStart],
-    queryFn: async () => {
-      if (!selectedEmployeeId) {
-        console.log('❌ Pas d\'employé sélectionné')
-        return null
-      }
-      
-      console.log('📡 Tentative de récupération planning:', { 
-        employeeId: selectedEmployeeId, 
-        weekStart: currentWeekStart 
-      })
-      
-      try {
-        const result = await simplePlanningApi.getWeekPlanning(selectedEmployeeId, currentWeekStart)
-        console.log('✅ Planning récupéré avec succès:', result)
-        return result
-      } catch (err) {
-         console.error('❌ Erreur lors de la récupération du planning:', err)
-         console.error('❌ Détails de l\'erreur:', {
-           message: err instanceof Error ? err.message : 'Erreur inconnue',
-           status: (err as any)?.status,
-           url: (err as any)?.url
-         })
-         throw err
-       }
-    },
+    queryFn: () => selectedEmployeeId ? slotApi.getWeekPlanning(selectedEmployeeId, currentWeekStart) : null,
     enabled: !!selectedEmployeeId,
     staleTime: 30000,
     retry: 1
   })
 
-  console.log('📊 État de la query:', { 
-    isLoading, 
-    error: error?.message, 
-    hasData: !!weekPlanning,
-    dataLength: weekPlanning?.slots?.length 
-  })
-
   // Mutations
   const createSlotMutation = useMutation({
-    mutationFn: simplePlanningApi.createSlot,
+    mutationFn: slotApi.createSlot,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['week-planning'] })
       setIsModalOpen(false)
@@ -101,8 +59,8 @@ const PlanningGrid: React.FC = () => {
   })
 
   const updateSlotMutation = useMutation({
-    mutationFn: ({ slotId, slotData }: { slotId: number; slotData: SimpleSlotUpdate }) => 
-      simplePlanningApi.updateSlot(slotId, slotData),
+    mutationFn: ({ slotId, slotData }: { slotId: number; slotData: SlotUpdate }) => 
+      slotApi.updateSlot(slotId, slotData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['week-planning'] })
       setIsModalOpen(false)
@@ -116,7 +74,7 @@ const PlanningGrid: React.FC = () => {
   })
 
   const deleteSlotMutation = useMutation({
-    mutationFn: simplePlanningApi.deleteSlot,
+    mutationFn: slotApi.deleteSlot,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['week-planning'] })
       console.log('✅ Créneau supprimé avec succès')
@@ -132,16 +90,14 @@ const PlanningGrid: React.FC = () => {
     if (!selectedEmployeeId) return
     
     const date = addDaysToDate(currentWeekStart, dayIndex)
-    const startTime = hour * 60 // Convertir l'heure en minutes
+    console.log('🎯 Clic cellule:', { dayIndex, hour, date })
     
-    console.log('🎯 Clic cellule:', { dayIndex, hour, date, startTime })
-    
-    setNewSlotData({ date, dayOfWeek: dayIndex, startTime })
+    setNewSlotData({ date, hour })
     setSelectedSlot(null)
     setIsModalOpen(true)
   }
 
-  const handleSlotClick = (slot: SimpleSlot) => {
+  const handleSlotClick = (slot: Slot) => {
     console.log('🎯 Clic créneau:', slot)
     setSelectedSlot(slot)
     setNewSlotData(null)
@@ -155,7 +111,7 @@ const PlanningGrid: React.FC = () => {
     }
   }
 
-  const handleSaveSlot = (slotData: any) => {
+  const handleSaveSlot = (formData: any) => {
     if (!selectedEmployeeId) return
 
     if (selectedSlot) {
@@ -163,30 +119,38 @@ const PlanningGrid: React.FC = () => {
       updateSlotMutation.mutate({
         slotId: selectedSlot.id,
         slotData: {
-          title: slotData.title,
-          category: slotData.category,
-          comment: slotData.comment,
-          start_time: timeToMinutes(slotData.startTime),
-          end_time: timeToMinutes(slotData.endTime)
+          title: formData.title,
+          category: formData.category,
+          comment: formData.comment,
+          start_hour: parseInt(formData.startTime.split(':')[0]),
+          start_minute: parseInt(formData.startTime.split(':')[1]),
+          duration_hours: parseInt(formData.endTime.split(':')[0]) - parseInt(formData.startTime.split(':')[0]),
+          duration_minutes: parseInt(formData.endTime.split(':')[1]) - parseInt(formData.startTime.split(':')[1])
         }
       })
     } else if (newSlotData) {
       // Création
+      const startHour = parseInt(formData.startTime.split(':')[0])
+      const startMinute = parseInt(formData.startTime.split(':')[1])
+      const endHour = parseInt(formData.endTime.split(':')[0])
+      const endMinute = parseInt(formData.endTime.split(':')[1])
+      
       createSlotMutation.mutate({
         employee_id: selectedEmployeeId,
         date: newSlotData.date,
-        day_of_week: newSlotData.dayOfWeek,
-        start_time: timeToMinutes(slotData.startTime),
-        end_time: timeToMinutes(slotData.endTime),
-        title: slotData.title,
-        category: slotData.category,
-        comment: slotData.comment || ''
+        start_hour: startHour,
+        start_minute: startMinute,
+        duration_hours: endHour - startHour,
+        duration_minutes: endMinute - startMinute,
+        title: formData.title,
+        category: formData.category,
+        comment: formData.comment || ''
       })
     }
   }
 
   // Fonction pour obtenir les créneaux d'un jour spécifique
-  const getSlotsForDay = (dayIndex: number): SimpleSlot[] => {
+  const getSlotsForDay = (dayIndex: number): Slot[] => {
     if (!weekPlanning?.slots) return []
     
     const dayDate = addDaysToDate(currentWeekStart, dayIndex)
@@ -194,12 +158,11 @@ const PlanningGrid: React.FC = () => {
   }
 
   // Fonction pour vérifier si une cellule a un créneau
-  const getSlotAtTime = (dayIndex: number, hour: number): SimpleSlot | null => {
+  const getSlotAtTime = (dayIndex: number, hour: number): Slot | null => {
     const slots = getSlotsForDay(dayIndex)
-    const timeInMinutes = hour * 60
     
     return slots.find(slot => 
-      slot.start_time <= timeInMinutes && slot.end_time > timeInMinutes
+      slot.start_hour <= hour && (slot.start_hour + slot.duration_hours) > hour
     ) || null
   }
 
@@ -220,22 +183,30 @@ const PlanningGrid: React.FC = () => {
     setCurrentWeekStart(getWeekStart(new Date()))
   }
 
-  // Fonction de test API
-  const testApi = async () => {
-    if (!selectedEmployeeId) {
-      alert('Sélectionnez d\'abord un employé')
-      return
-    }
+  // Drag & Drop
+  const handleDragStart = (slot: Slot) => {
+    setDraggedSlot(slot)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (dayIndex: number, hour: number) => {
+    if (!draggedSlot) return
     
-    console.log('🧪 Test API manuel...')
-    try {
-      const result = await simplePlanningApi.getWeekPlanning(selectedEmployeeId, currentWeekStart)
-      console.log('✅ Test API réussi:', result)
-      alert('Test API réussi ! Voir la console pour les détails.')
-    } catch (error) {
-       console.error('❌ Test API échoué:', error)
-       alert(`Test API échoué: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
-     }
+    const newDate = addDaysToDate(currentWeekStart, dayIndex)
+    
+    updateSlotMutation.mutate({
+      slotId: draggedSlot.id,
+      slotData: {
+        date: newDate,
+        start_hour: hour,
+        start_minute: 0
+      }
+    })
+    
+    setDraggedSlot(null)
   }
 
   if (!selectedEmployeeId) {
@@ -281,31 +252,10 @@ const PlanningGrid: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Panneau de debug visible */}
-      <div className="bg-yellow-100 border border-yellow-400 p-4 rounded-lg">
-        <h3 className="font-bold text-yellow-800 mb-2">🔍 Debug Info</h3>
-        <div className="text-sm space-y-1">
-          <div><strong>Employé sélectionné:</strong> {selectedEmployeeId || 'Aucun'}</div>
-          <div><strong>Semaine courante:</strong> {currentWeekStart}</div>
-          <div><strong>État de chargement:</strong> {isLoading ? 'Chargement...' : 'Terminé'}</div>
-          <div><strong>Erreur:</strong> {error ? ((error as any) instanceof Error ? (error as Error).message : String(error)) : 'Aucune'}</div>
-          <div><strong>Données reçues:</strong> {weekPlanning ? `${weekPlanning.slots?.length || 0} créneaux` : 'Aucune'}</div>
-          <div><strong>URL API:</strong> {selectedEmployeeId ? `/planning/week?employee_id=${selectedEmployeeId}&week_start=${currentWeekStart}` : 'N/A'}</div>
-        </div>
-        <div className="mt-3 space-x-2">
-          <button 
-            onClick={testApi}
-            className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-          >
-            🧪 Tester API
-          </button>
-          <button 
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['week-planning'] })}
-            className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
-          >
-            🔄 Recharger
-          </button>
-        </div>
+      {/* Debug info */}
+      <div className="bg-green-100 border border-green-400 p-3 rounded">
+        <strong>✅ Planning Ultra-Simple:</strong> Employé {selectedEmployeeId} | Semaine {currentWeekStart} | 
+        {weekPlanning?.slots?.length || 0} créneaux | API: /slots/week
       </div>
 
       {/* Navigation semaine */}
@@ -371,19 +321,36 @@ const PlanningGrid: React.FC = () => {
                       ${slot ? 'bg-blue-100' : 'hover:bg-gray-50'}
                     `}
                     onClick={() => slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(dayIndex, hour)}
                   >
                     {slot ? (
-                      <div className="absolute inset-1 bg-blue-500 text-white rounded p-1 text-xs overflow-hidden">
+                      <div 
+                        className="absolute inset-1 bg-blue-500 text-white rounded p-1 text-xs overflow-hidden cursor-move"
+                        draggable
+                        onDragStart={() => handleDragStart(slot)}
+                      >
                         <div className="font-medium truncate">{slot.title}</div>
                         <div className="text-blue-100">
-                          {minutesToTime(slot.start_time)} - {minutesToTime(slot.end_time)}
+                          {slot.start_time_str} - {slot.end_time_str}
                         </div>
-                        <button
-                          onClick={(e) => handleDeleteSlot(slot.id, e)}
-                          className="absolute top-1 right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
-                        >
-                          <Trash2 size={10} />
-                        </button>
+                        <div className="absolute top-1 right-1 flex space-x-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSlotClick(slot) }}
+                            className="w-4 h-4 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center"
+                          >
+                            <Edit size={8} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteSlot(slot.id, e)}
+                            className="w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
+                          >
+                            <Trash2 size={8} />
+                          </button>
+                        </div>
+                        <div className="absolute top-1 left-1">
+                          <Move size={8} className="text-white opacity-50" />
+                        </div>
                       </div>
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -398,15 +365,9 @@ const PlanningGrid: React.FC = () => {
         </div>
       </div>
 
-      {/* Debug info */}
-      <div className="bg-yellow-50 p-3 rounded text-sm">
-        <strong>Debug:</strong> Employé {selectedEmployeeId} | Semaine {currentWeekStart} | 
-        {weekPlanning?.slots?.length || 0} créneaux
-      </div>
-
-      {/* Modal */}
+      {/* Modal simple */}
       {isModalOpen && (
-        <SlotModal
+        <SimpleSlotModal
           isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false)
@@ -415,10 +376,142 @@ const PlanningGrid: React.FC = () => {
           }}
           onSave={handleSaveSlot}
           slot={selectedSlot}
-          defaultStartTime={newSlotData ? minutesToTime(newSlotData.startTime) : undefined}
+          defaultStartTime={newSlotData ? `${newSlotData.hour}:00` : undefined}
           isLoading={createSlotMutation.isPending || updateSlotMutation.isPending}
         />
       )}
+    </div>
+  )
+}
+
+// Modal ultra-simple
+const SimpleSlotModal: React.FC<{
+  isOpen: boolean
+  onClose: () => void
+  onSave: (data: any) => void
+  slot?: Slot | null
+  defaultStartTime?: string
+  isLoading?: boolean
+}> = ({ isOpen, onClose, onSave, slot, defaultStartTime, isLoading = false }) => {
+  const [formData, setFormData] = useState({
+    title: slot?.title || '',
+    category: slot?.category || 'a',
+    comment: slot?.comment || '',
+    startTime: slot ? slot.start_time_str : (defaultStartTime || '09:00'),
+    endTime: slot ? slot.end_time_str : '10:00'
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.title.trim()) {
+      alert('Le titre est requis')
+      return
+    }
+    onSave(formData)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold">
+            {slot ? 'Modifier le créneau' : 'Nouveau créneau'}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Titre *</label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+              disabled={isLoading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie *</label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+              disabled={isLoading}
+            >
+              <option value="a">Administratif/gestion</option>
+              <option value="p">Prestation/événement</option>
+              <option value="e">École d'escalade</option>
+              <option value="c">Groupes compétition</option>
+              <option value="o">Ouverture</option>
+              <option value="l">Loisir</option>
+              <option value="m">Mise en place / Rangement</option>
+              <option value="s">Santé Adulte/Enfant</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Début *</label>
+              <input
+                type="time"
+                value={formData.startTime}
+                onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fin *</label>
+              <input
+                type="time"
+                value={formData.endTime}
+                onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Commentaire</label>
+            <textarea
+              value={formData.comment}
+              onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              disabled={isLoading}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Sauvegarde...' : 'Sauvegarder'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
