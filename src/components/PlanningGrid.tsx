@@ -54,6 +54,12 @@ const PlanningGrid: React.FC = () => {
     switch (selectedWeekKind) {
       case 'type':
         return '2024-01-01' // Semaine type fixe
+      case 'current':
+        return selectedWeekStart || getWeekStart(new Date())
+      case 'next':
+        const nextWeek = new Date(selectedWeekStart || getWeekStart(new Date()))
+        nextWeek.setDate(nextWeek.getDate() + 7)
+        return getWeekStart(nextWeek)
       default:
         return selectedWeekStart || getWeekStart(new Date())
     }
@@ -314,8 +320,9 @@ const PlanningGrid: React.FC = () => {
         <div className="text-center">
           <h2 className="text-lg font-semibold">
             {selectedWeekKind === 'type' && 'Semaine type'}
+            {selectedWeekKind === 'current' && `Semaine actuelle - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
+            {selectedWeekKind === 'next' && `Semaine suivante - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
             {selectedWeekKind === 'vacation' && `Vacances ${selectedVacationPeriod} - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
-            {(selectedWeekKind === 'current' || selectedWeekKind === 'next') && `Semaine du ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
           </h2>
           <button 
             onClick={goToCurrentWeek}

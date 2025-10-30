@@ -15,8 +15,8 @@ const WeekSelector: FC = () => {
 
   const weekKindOptions: { value: WeekKind; label: string }[] = [
     { value: 'type', label: 'Semaine type' },
-    { value: 'current', label: 'Semaine libre' },
-    { value: 'next', label: 'Semaine libre' },
+    { value: 'current', label: 'Semaine actuelle' },
+    { value: 'next', label: 'Semaine suivante' },
     { value: 'vacation', label: 'Semaine vacances' }
   ]
 
