@@ -130,32 +130,18 @@ export const weekService = {
   async createWeek(employeeId: number, kind: string, weekStart: string, vacation?: string): Promise<WeekResponse> {
     const api = new ApiService()
     
-    // Mapping des strings vers les IDs
-    const kindMapping: Record<string, number> = {
-      'type': 1,
-      'current': 2, 
-      'next': 3,
-      'vacation': 4
-    }
-    
-    const vacationMapping: Record<string, number> = {
-      'Toussaint': 1,
-      'Noel': 2,
-      'Paques': 3,
-      'Ete': 4
-    }
-    
+    // Données simplifiées - envoi direct des strings
     const weekData: any = {
       employee_id: employeeId,
-      kind_id: kindMapping[kind] || 2, // Default to 'current'
+      kind: kind,
       week_start_date: weekStart
     }
     
-    if (vacation && vacationMapping[vacation]) {
-      weekData.vacation_id = vacationMapping[vacation]
+    if (vacation) {
+      weekData.vacation = vacation
     }
     
-    console.log('📤 Données semaine à envoyer:', weekData)
+    console.log('📤 Données semaine simplifiées à envoyer:', weekData)
     
     return api.request('/weeks', {
       method: 'POST',
