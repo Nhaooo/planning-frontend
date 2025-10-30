@@ -23,10 +23,11 @@ function App() {
   const { selectedEmployeeId, setEmployees } = usePlanningStore()
   const { isAuthenticated, user, isAdmin } = useAuthStore()
 
-  // Charger les employés au démarrage
+  // Charger les employés seulement si authentifié
   const { data, isLoading, error } = useQuery<Employee[]>({
     queryKey: ['employees'],
-    queryFn: employeeService.getAll
+    queryFn: employeeService.getAll,
+    enabled: isAuthenticated // Ne charger que si connecté
   })
 
   // Gérer les données et erreurs

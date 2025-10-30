@@ -63,24 +63,44 @@ const ApiDiagnostic: FC = () => {
       addResult('employees', 'error', `Employés error: ${error.message}`, error)
     }
 
-    // Test 4: Auth
+    // Test 4: Auth avec différents PINs
     addResult('auth', 'loading', 'Test authentification...')
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login/admin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: '1234' })
-      })
+    
+    const pinsToTest = ['1234', '0000', 'admin', '1111']
+    let authSuccess = false
+    
+    for (const pin of pinsToTest) {
+      if (authSuccess) break
       
-      if (response.ok) {
-        const data = await response.json()
-        addResult('auth', 'success', `Auth OK (token reçu)`, { hasToken: !!data.access_token })
-      } else {
-        const errorText = await response.text()
-        addResult('auth', 'error', `Auth failed (${response.status})`, errorText)
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/login/admin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          addResult('auth', 'success', `Auth OK avec PIN "${pin}" (token reçu)`, { 
+            pin, 
+            hasToken: !!data.access_token,
+            userType: data.user_type,
+            userName: data.user_name
+          })
+          authSuccess = true
+        } else {
+          console.log(`PIN "${pin}" failed:`, response.status)
+        }
+      } catch (error: any) {
+        console.log(`PIN "${pin}" error:`, error.message)
       }
-    } catch (error: any) {
-      addResult('auth', 'error', `Auth error: ${error.message}`, error)
+    }
+    
+    if (!authSuccess) {
+      addResult('auth', 'error', `Aucun PIN ne fonctionne. Testés: ${pinsToTest.join(', ')}`, {
+        testedPins: pinsToTest,
+        suggestion: 'Vérifiez la variable ADMIN_PIN sur Render'
+      })
     }
   }
 

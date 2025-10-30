@@ -10,15 +10,39 @@ import {
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 
 class ApiService {
+  private getAuthToken(): string | null {
+    // Récupérer le token depuis localStorage (où Zustand le stocke)
+    try {
+      const authState = localStorage.getItem('auth-storage')
+      if (authState) {
+        const parsed = JSON.parse(authState)
+        return parsed.state?.user?.token || null
+      }
+    } catch (error) {
+      console.warn('Erreur récupération token:', error)
+    }
+    return null
+  }
+
   async request<T>(
     endpoint: string, 
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`
     
+    // Ajouter automatiquement le token d'authentification si disponible
+    const token = this.getAuthToken()
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
         ...options.headers,
       },
       ...options,
