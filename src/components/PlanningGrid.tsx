@@ -5,9 +5,10 @@ import { usePlanningStore } from '../store/planningStore'
 import { simplePlanningApi, SimpleSlot, SimpleSlotUpdate } from '../services/simplePlanningApi'
 import SlotModal from './SlotModal'
 import { getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
+import useFluidMetrics from '../hooks/useFluidMetrics'
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i) // 7h à 20h
+const HOURS = Array.from({ length: 13 }, (_, i) => i + 8) // 8h à 20h
 
 // Utilitaires de conversion
 const minutesToTime = (minutes: number): string => {
@@ -44,6 +45,8 @@ const PlanningGrid: React.FC = () => {
     setSelectedWeekStart 
   } = usePlanningStore()
   const queryClient = useQueryClient()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { minutesToPixels, pixelsToMinutes, snapToGrid } = useFluidMetrics(containerRef)
   
   const [selectedSlot, setSelectedSlot] = useState<SimpleSlot | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -394,12 +397,7 @@ const PlanningGrid: React.FC = () => {
     pointerStartX: number
   } | null>(null)
 
-  // Constantes de configuration
-  const PX_PER_MIN = 1.6
-  const STEP_MIN = 60
-  const MIN_DURATION = 60
-
-  const snap = (m: number) => Math.round(m / STEP_MIN) * STEP_MIN
+  // Fonctions utilitaires
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
   
   // Fonction pour obtenir l'index du jour à partir d'une date
@@ -542,15 +540,16 @@ const PlanningGrid: React.FC = () => {
       setHorizontalPreviewDays(deltaDays)
       console.log('📏 Étirement horizontal:', { deltaX, deltaDays })
     } else {
-      // Étirement vertical
-      const deltaMin = (e.clientY - pointerStartY) / PX_PER_MIN
-      const delta = snap(deltaMin)
+      // Étirement vertical avec système fluide
+      const deltaPixels = e.clientY - pointerStartY
+      const deltaMinutes = pixelsToMinutes(deltaPixels)
+      const snappedDelta = snapToGrid(deltaMinutes, 15)
 
       if (kind === "resize-start") {
-        let next = clamp(startAt + delta, 0, endAt - MIN_DURATION)
+        let next = clamp(startAt + snappedDelta, 0, endAt - 15)
         setTempStartTime(next)
       } else {
-        let next = clamp(endAt + delta, startAt + MIN_DURATION, 24 * 60)
+        let next = clamp(endAt + snappedDelta, startAt + 15, 24 * 60)
         setTempEndTime(next)
       }
     }
@@ -591,8 +590,8 @@ const PlanningGrid: React.FC = () => {
       }
     } else {
       // Étirement vertical : mise à jour de la durée
-      const finalStartTime = snap(tempStartTime)
-      const finalEndTime = snap(tempEndTime)
+      const finalStartTime = snapToGrid(tempStartTime, 15)
+      const finalEndTime = snapToGrid(tempEndTime, 15)
       
       console.log('✅ Fin étirement vertical, mise à jour:', { 
         slotId: resizingSlot.id, 
@@ -770,11 +769,11 @@ const PlanningGrid: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div ref={containerRef} className="fluid-container space-y-4 safe-area">
 
       {/* Navigation semaine */}
-      <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+      <div className="bg-white fluid-spacing-md rounded-lg shadow">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-sm">
           <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-0">
             <button 
               onClick={goToPreviousWeek}
@@ -833,19 +832,19 @@ const PlanningGrid: React.FC = () => {
       </div>
 
       {/* Grille de planning */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden contain-layout">
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-8 gap-0 min-w-[640px]">
+          <div className="fluid-grid grid-cols-8 min-w-[640px]" style={{ gridAutoRows: `var(--cell-height)` }}>
             {/* En-tête avec les jours */}
-            <div className="bg-gray-50 p-2 sm:p-3 font-medium text-center border-b text-xs sm:text-sm">
+            <div className="bg-gray-50 fluid-cell font-medium text-center border-b fluid-text-sm">
               <span className="hidden sm:inline">Heures</span>
               <span className="sm:hidden">H</span>
             </div>
             {DAYS.map((day, index) => (
-              <div key={day} className="bg-gray-50 p-2 sm:p-3 font-medium text-center border-b text-xs sm:text-sm">
+              <div key={day} className="bg-gray-50 fluid-cell font-medium text-center border-b fluid-text-sm">
                 <span className="hidden sm:inline">{day}</span>
                 <span className="sm:hidden">{day.slice(0, 3)}</span>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="fluid-text-xs text-gray-500 mt-1">
                   {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                 </div>
               </div>
@@ -855,7 +854,7 @@ const PlanningGrid: React.FC = () => {
           {HOURS.map(hour => (
               <React.Fragment key={hour}>
                 {/* Colonne des heures */}
-                <div className="bg-gray-50 p-2 sm:p-3 text-center font-medium border-b border-r text-xs sm:text-sm">
+                <div className="bg-gray-50 fluid-cell text-center font-medium border-b border-r fluid-text-sm">
                   <span className="hidden sm:inline">{hour}:00</span>
                   <span className="sm:hidden">{hour}h</span>
                 </div>
@@ -876,17 +875,18 @@ const PlanningGrid: React.FC = () => {
                     hour === resizingSlot.start_time // Seulement au début du slot
                   const displayStartTime = isBeingResized ? tempStartTime : (slot?.start_time || 0)
                   const displayEndTime = isBeingResized ? tempEndTime : (slot?.end_time || 0)
-                  const displaySlot = slot ? { ...slot, start_time: displayStartTime, end_time: displayEndTime } : null
-                  const slotHeight = displaySlot ? getSlotHeight(displaySlot) : 1
                 
                 return (
                   <div 
                     key={`${hour}-${dayIndex}`}
                     className={`
-                      relative h-12 sm:h-16 border-b border-r cursor-pointer transition-colors
+                      relative fluid-cell border-b border-r cursor-pointer transition-colors contain-paint
                       ${slot ? '' : 'hover:bg-gray-50'}
                     `}
-                    style={slot ? getCellBackgroundStyle(slot.category) : {}}
+                    style={{ 
+                      height: `var(--cell-height)`,
+                      ...(slot ? getCellBackgroundStyle(slot.category) : {})
+                    }}
                     onClick={() => {
                       if (resizingSlot) return // Empêcher clic pendant étirement
                       slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)
@@ -897,13 +897,13 @@ const PlanningGrid: React.FC = () => {
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className={`absolute inset-0.5 sm:inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
+                        className={`absolute inset-1 text-white rounded fluid-spacing-xs fluid-text-sm overflow-hidden z-10 cursor-move slot-container will-change-transform ${
                           isBeingResized ? (isHorizontalResize ? 'slot-resizing-horizontal' : 'slot-resizing') : ''
                         }`}
                         style={{
                           ...getSlotStyle(slot.category),
-                          height: `${slotHeight * (window.innerWidth < 640 ? 48 : 64) - (window.innerWidth < 640 ? 4 : 8)}px`, // Hauteur adaptative
-                          minHeight: slotHeight < 1 ? `${slotHeight * (window.innerWidth < 640 ? 48 : 64) - (window.innerWidth < 640 ? 4 : 8)}px` : (window.innerWidth < 640 ? '44px' : '56px')
+                          height: `${minutesToPixels(displayEndTime - displayStartTime)}px`,
+                          minHeight: `${minutesToPixels(15)}px` // 15 minutes minimum
                         }}
                         draggable={!resizingSlot}
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
@@ -918,8 +918,8 @@ const PlanningGrid: React.FC = () => {
                           }
                         }}
                       >
-                        <div className="font-medium truncate text-xs sm:text-sm">{slot.title}</div>
-                        <div className={`text-xs opacity-75 ${isBeingResized ? (isHorizontalResize ? 'font-bold text-green-200' : 'font-bold text-blue-200') : ''}`}>
+                        <div className="font-medium truncate fluid-text-sm">{slot.title}</div>
+                        <div className={`fluid-text-xs opacity-75 ${isBeingResized ? (isHorizontalResize ? 'font-bold text-green-200' : 'font-bold text-blue-200') : ''}`}>
                           <span className="hidden sm:inline">{minutesToTime(displayStartTime)} - {minutesToTime(displayEndTime)}</span>
                           <span className="sm:hidden">{Math.floor(displayStartTime / 60)}h-{Math.floor(displayEndTime / 60)}h</span>
                           {isBeingResized && !isHorizontalResize && (
@@ -934,7 +934,7 @@ const PlanningGrid: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="text-xs opacity-70 mt-1 hidden sm:block">
+                        <div className="fluid-text-xs opacity-70 mt-1 hidden sm:block">
                           {slot.comment && (
                             <div className="truncate">{slot.comment}</div>
                           )}
@@ -950,11 +950,12 @@ const PlanningGrid: React.FC = () => {
                         
                         {/* Handles d'étirement avec PointerEvents */}
                         <div 
-                          className="resize-handle resize-handle-vertical resize-handle-bottom"
+                          className="resize-handle resize-handle-vertical resize-handle-bottom touch-target"
                           onPointerDown={onPointerDown(slot, "resize-end")}
                           onPointerMove={onPointerMove}
                           onPointerUp={(e) => onPointerUp(e)}
                           style={{ 
+                            height: `var(--drag-handle)`,
                             touchAction: 'none', 
                             userSelect: 'none',
                             cursor: 'ns-resize'
@@ -962,11 +963,12 @@ const PlanningGrid: React.FC = () => {
                           title="Glisser pour changer la durée"
                         ></div>
                         <div 
-                          className="resize-handle resize-handle-horizontal resize-handle-right"
+                          className="resize-handle resize-handle-horizontal resize-handle-right touch-target"
                           onPointerDown={onPointerDown(slot, "resize-horizontal")}
                           onPointerMove={onPointerMove}
                           onPointerUp={(e) => onPointerUp(e)}
                           style={{ 
+                            width: `var(--drag-handle)`,
                             touchAction: 'none', 
                             userSelect: 'none',
                             cursor: 'ew-resize'
