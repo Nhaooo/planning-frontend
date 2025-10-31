@@ -13,42 +13,58 @@
   background-color: rgba(59, 130, 246, 0.1) !important;
 }
 
-/* Handles d'étirement */
+/* Handles d'étirement améliorés */
 .resize-handle {
   position: absolute;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 240, 240, 0.95));
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 20;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .resize-handle:hover {
-  background: rgba(255, 255, 255, 1);
-  border-color: rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(245, 245, 245, 1));
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: scale(1.1);
 }
 
 .resize-handle-vertical {
-  width: 100%;
-  height: 6px;
+  width: calc(100% - 8px);
+  height: 8px;
   cursor: ns-resize;
-  left: 0;
+  left: 4px;
+}
+
+.resize-handle-vertical::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 1px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .resize-handle-horizontal {
-  width: 6px;
-  height: 100%;
+  width: 8px;
+  height: calc(100% - 8px);
   cursor: ew-resize;
-  top: 0;
+  top: 4px;
 }
 
 .resize-handle-bottom {
-  bottom: -3px;
+  bottom: -4px;
 }
 
 .resize-handle-right {
-  right: -3px;
+  right: -4px;
 }
 
 /* Afficher les handles au survol du bloc */
@@ -56,9 +72,22 @@
   opacity: 1;
 }
 
-/* Animation d'étirement */
-.resizing {
-  transition: all 0.1s ease;
+/* Animation d'étirement en temps réel */
+.slot-resizing {
+  transition: height 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  border: 2px solid rgba(59, 130, 246, 0.5);
+  transform: scale(1.02);
+}
+
+/* Animation subtile au hover */
+.slot-container {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slot-container:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 @layer base {

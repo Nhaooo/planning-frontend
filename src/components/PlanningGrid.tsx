@@ -424,11 +424,13 @@ const PlanningGrid: React.FC = () => {
   }
 
      const handleSlotClick = (slot: SimpleSlot) => {
-    console.log('🎯 Clic créneau:', slot)
-    setSelectedSlot(slot)
-    setNewSlotData(null)
-    setIsModalOpen(true)
-  }
+      // Empêcher l'ouverture du modal pendant l'étirement
+      if (resizingSlot) return
+      
+      console.log('🎯 Clic créneau:', slot)
+      setSelectedSlot(slot)
+      setIsModalOpen(true)
+    }
 
   const handleDeleteSlot = (slotId: number, event: React.MouseEvent) => {
     event.stopPropagation()
@@ -629,7 +631,12 @@ const PlanningGrid: React.FC = () => {
               {DAYS.map((_, dayIndex) => {
                 const slot = getSlotAtTime(dayIndex, hour)
                 const shouldShowSlot = slot && isSlotStart(slot, hour)
-                const slotHeight = slot ? getSlotHeight(slot) : 1
+                // Utiliser les temps temporaires pendant l'étirement pour feedback visuel
+                  const isBeingResized = slot && resizingSlot?.id === slot.id
+                  const displayStartTime = isBeingResized ? tempStartTime : (slot?.start_time || 0)
+                  const displayEndTime = isBeingResized ? tempEndTime : (slot?.end_time || 0)
+                  const displaySlot = slot ? { ...slot, start_time: displayStartTime, end_time: displayEndTime } : null
+                  const slotHeight = displaySlot ? getSlotHeight(displaySlot) : 1
                 
                 return (
                   <div 
@@ -646,7 +653,7 @@ const PlanningGrid: React.FC = () => {
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container"
+                        className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${isBeingResized ? 'slot-resizing' : ''}`}
                         style={{
                           ...getSlotStyle(slot.category),
                           height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
@@ -659,8 +666,13 @@ const PlanningGrid: React.FC = () => {
                         onPointerUp={onPointerUp}
                       >
                         <div className="font-medium truncate">{slot.title}</div>
-                        <div className="opacity-80">
-                          {minutesToTime(slot.start_time)} - {minutesToTime(slot.end_time)}
+                        <div className={`opacity-80 ${isBeingResized ? 'font-bold text-blue-200' : ''}`}>
+                          {minutesToTime(displayStartTime)} - {minutesToTime(displayEndTime)}
+                          {isBeingResized && (
+                            <span className="ml-1 text-blue-100">
+                              ({Math.round((displayEndTime - displayStartTime) / 60 * 10) / 10}h)
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs opacity-70 mt-1">
                           {getCategoryColors(slot.category).name}
