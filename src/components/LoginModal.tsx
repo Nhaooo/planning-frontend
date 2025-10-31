@@ -73,30 +73,30 @@ const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* En-tête */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-            <Shield className="h-5 w-5 text-blue-600" />
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center space-x-2">
+            <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             <span>Connexion</span>
           </h2>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 p-1"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         </div>
 
         {/* Formulaire */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Sélecteur de type de connexion */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
               Type de connexion
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <label className="relative">
                 <input
                   type="radio"
@@ -104,14 +104,14 @@ const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   {...register('loginType')}
                   className="sr-only"
                 />
-                <div className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                <div className={`p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
                   loginType === 'admin' 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-200 hover:border-gray-300'
                 }`}>
                   <div className="flex items-center space-x-2">
-                    <Shield className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium">Admin</span>
+                    <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                    <span className="font-medium text-sm sm:text-base">Admin</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Accès complet avec PIN
@@ -126,14 +126,14 @@ const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   {...register('loginType')}
                   className="sr-only"
                 />
-                <div className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                <div className={`p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
                   loginType === 'employee' 
                     ? 'border-green-500 bg-green-50' 
                     : 'border-gray-200 hover:border-gray-300'
                 }`}>
                   <div className="flex items-center space-x-2">
-                    <User className="h-5 w-5 text-green-600" />
-                    <span className="font-medium">Employé</span>
+                    <User className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                    <span className="font-medium text-sm sm:text-base">Employé</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Accès à son planning
@@ -204,11 +204,11 @@ const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose }) => {
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-end space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-4">
             <button
               type="button"
               onClick={handleClose}
-              className="btn-secondary"
+              className="btn-secondary order-2 sm:order-1"
               disabled={isLoading}
             >
               Annuler
@@ -216,7 +216,7 @@ const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose }) => {
             <button
               type="submit"
               disabled={!isValid || isLoading}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 order-1 sm:order-2"
             >
               {isLoading && <LoadingSpinner size="small" />}
               <span>
@@ -227,15 +227,16 @@ const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose }) => {
         </form>
 
         {/* Aide */}
-        <div className="px-6 pb-6">
-          <div className="bg-gray-50 rounded-lg p-4">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
             <h4 className="text-sm font-medium text-gray-900 mb-2">
               Aide à la connexion
             </h4>
             <div className="text-xs text-gray-600 space-y-1">
               <div><strong>Admin :</strong> Accès complet avec PIN (défaut: 1234)</div>
               <div><strong>Employé :</strong> Accès à son planning avec son identifiant</div>
-              <div><strong>Identifiants disponibles :</strong> jeanne, julien, lucas, melanie, raphael</div>
+              <div className="hidden sm:block"><strong>Identifiants disponibles :</strong> jeanne, julien, lucas, melanie, raphael</div>
+              <div className="sm:hidden"><strong>IDs :</strong> jeanne, julien, lucas, melanie, raphael</div>
             </div>
           </div>
         </div>

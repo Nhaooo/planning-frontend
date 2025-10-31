@@ -134,36 +134,6 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Responsive pour les cellules de planning */
-@media (max-width: 640px) {
-  .slot-container {
-    font-size: 10px;
-    padding: 2px;
-  }
-  
-  .slot-container .font-medium {
-    font-size: 10px;
-    line-height: 1.2;
-  }
-  
-  .slot-container .text-xs {
-    font-size: 9px;
-  }
-  
-  /* Handles plus petits sur mobile */
-  .resize-handle {
-    opacity: 0.8;
-  }
-  
-  .resize-handle-vertical {
-    height: 6px;
-  }
-  
-  .resize-handle-horizontal {
-    width: 6px;
-  }
-}
-
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;

@@ -626,91 +626,61 @@ const PlanningGrid: React.FC = () => {
   }
 
   return (
-    <div className="space-y-2 sm:space-y-4 h-full flex flex-col">
+    <div className="space-y-4">
 
       {/* Navigation semaine */}
-      <div className="bg-white p-2 sm:p-4 rounded-lg shadow">
-        <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow">
+        <button 
+          onClick={goToPreviousWeek}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded"
+        >
+          ← Semaine précédente
+        </button>
+        
+        <div className="text-center">
+          <h2 className="text-lg font-semibold">
+            {selectedWeekKind === 'type' && 'Semaine type'}
+            {selectedWeekKind === 'current' && `Semaine actuelle - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
+            {selectedWeekKind === 'next' && `Semaine suivante - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
+            {selectedWeekKind === 'vacation' && `Vacances ${selectedVacationPeriod} - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
+          </h2>
           <button 
-            onClick={goToPreviousWeek}
-            className="px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base w-full sm:w-auto"
+            onClick={goToCurrentWeek}
+            className="text-sm text-blue-600 hover:text-blue-800"
           >
-            <span className="sm:hidden">← Précédente</span>
-            <span className="hidden sm:inline">← Semaine précédente</span>
-          </button>
-          
-          <div className="text-center flex-1 sm:flex-none">
-            <h2 className="text-sm sm:text-lg font-semibold">
-              {selectedWeekKind === 'type' && 'Semaine type'}
-              {selectedWeekKind === 'current' && (
-                <>
-                  <span className="hidden sm:inline">Semaine actuelle - </span>
-                  <span className="sm:hidden">Actuelle - </span>
-                  {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
-                </>
-              )}
-              {selectedWeekKind === 'next' && (
-                <>
-                  <span className="hidden sm:inline">Semaine suivante - </span>
-                  <span className="sm:hidden">Suivante - </span>
-                  {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
-                </>
-              )}
-              {selectedWeekKind === 'vacation' && (
-                <>
-                  <span className="hidden sm:inline">Vacances {selectedVacationPeriod} - </span>
-                  <span className="sm:hidden">Vacances - </span>
-                  {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
-                </>
-              )}
-            </h2>
-            <button 
-              onClick={goToCurrentWeek}
-              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 mt-1"
-            >
-              Aller à cette semaine
-            </button>
-          </div>
-          
-          <button 
-            onClick={goToNextWeek}
-            className="px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base w-full sm:w-auto"
-          >
-            <span className="sm:hidden">Suivante →</span>
-            <span className="hidden sm:inline">Semaine suivante →</span>
+            Aller à cette semaine
           </button>
         </div>
+        
+        <button 
+          onClick={goToNextWeek}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded"
+        >
+          Semaine suivante →
+        </button>
       </div>
 
       {/* Grille de planning */}
-      <div className="bg-white rounded-lg shadow overflow-hidden flex-1 min-h-0">
-        <div className="overflow-x-auto h-full">
-          <div className="grid grid-cols-8 gap-0 min-w-[640px] h-full">
-            {/* En-tête avec les jours */}
-            <div className="bg-gray-50 p-2 sm:p-3 font-medium text-center border-b text-xs sm:text-sm">
-              <span className="hidden sm:inline">Heures</span>
-              <span className="sm:hidden">H</span>
-            </div>
-            {DAYS.map((day, index) => (
-              <div key={day} className="bg-gray-50 p-2 sm:p-3 font-medium text-center border-b text-xs sm:text-sm">
-                <div className="truncate">
-                  <span className="hidden sm:inline">{day}</span>
-                  <span className="sm:hidden">{day.slice(0, 3)}</span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                </div>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="grid grid-cols-8 gap-0">
+          {/* En-tête avec les jours */}
+          <div className="bg-gray-50 p-3 font-medium text-center border-b">Heures</div>
+          {DAYS.map((day, index) => (
+            <div key={day} className="bg-gray-50 p-3 font-medium text-center border-b">
+              {day}
+              <div className="text-xs text-gray-500 mt-1">
+                {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
               </div>
-            ))}
+            </div>
+          ))}
 
-             {/* Lignes d'heures */}
-             {HOURS.map(hour => (
-               <React.Fragment key={hour}>
-                 {/* Colonne des heures */}
-                 <div className="bg-gray-50 p-2 sm:p-3 text-center font-medium border-b border-r text-xs sm:text-sm">
-                   <span className="hidden sm:inline">{hour}:00</span>
-                   <span className="sm:hidden">{hour}h</span>
-                 </div>
+          {/* Lignes d'heures */}
+          {HOURS.map(hour => (
+            <React.Fragment key={hour}>
+              {/* Colonne des heures */}
+              <div className="bg-gray-50 p-3 text-center font-medium border-b border-r">
+                {hour}:00
+              </div>
               
               {/* Cellules pour chaque jour */}
               {DAYS.map((_, dayIndex) => {
@@ -720,10 +690,9 @@ const PlanningGrid: React.FC = () => {
                   const isBeingResized = slot && resizingSlot?.id === slot.id
                   const isHorizontalResize = isBeingResized && draggingRef.current?.kind === "resize-horizontal"
                   
-                  // Preview horizontal : afficher les futurs blocs SEULEMENT pendant l'étirement
+                  // Preview horizontal : afficher les futurs blocs
                   const isHorizontalPreview = resizingSlot && !slot && horizontalPreviewDays > 0 && 
                     draggingRef.current?.kind === "resize-horizontal" &&
-                    draggingRef.current !== null && // S'assurer qu'on est en train d'étirer
                     dayIndex > getDayIndex(resizingSlot.date) && 
                     dayIndex <= getDayIndex(resizingSlot.date) + horizontalPreviewDays &&
                     hour === resizingSlot.start_time // Seulement au début du slot
@@ -732,13 +701,13 @@ const PlanningGrid: React.FC = () => {
                   const displaySlot = slot ? { ...slot, start_time: displayStartTime, end_time: displayEndTime } : null
                   const slotHeight = displaySlot ? getSlotHeight(displaySlot) : 1
                 
-                  return (
-                    <div 
-                      key={`${hour}-${dayIndex}`}
-                      className={`
-                        relative h-12 sm:h-16 border-b border-r cursor-pointer transition-colors
-                        ${slot ? '' : 'hover:bg-gray-50'}
-                      `}
+                return (
+                  <div 
+                    key={`${hour}-${dayIndex}`}
+                    className={`
+                      relative h-16 border-b border-r cursor-pointer transition-colors
+                      ${slot ? '' : 'hover:bg-gray-50'}
+                    `}
                     style={slot ? getCellBackgroundStyle(slot.category) : {}}
                     onClick={() => {
                       if (resizingSlot) return // Empêcher clic pendant étirement
@@ -749,31 +718,18 @@ const PlanningGrid: React.FC = () => {
                     onDrop={(e) => handleDrop(e, dayIndex, hour)}
                   >
                     {shouldShowSlot ? (
-                        <div 
-                          className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
-                            isBeingResized ? (isHorizontalResize ? 'slot-resizing-horizontal' : 'slot-resizing') : ''
-                          }`}
-                          style={{
-                            ...getSlotStyle(slot.category),
-                            height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
-                            minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
-                          }}
+                      <div 
+                        className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
+                          isBeingResized ? (isHorizontalResize ? 'slot-resizing-horizontal' : 'slot-resizing') : ''
+                        }`}
+                        style={{
+                          ...getSlotStyle(slot.category),
+                          height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
+                          minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
+                        }}
                         draggable={!resizingSlot}
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
                         onDragEnd={handleSlotDragEnd}
-                        onTouchStart={(e) => {
-                          // Support tactile pour le drag & drop
-                          e.preventDefault()
-                          handleSlotDragStart(e as any, slot)
-                        }}
-                        onTouchMove={(e) => {
-                          e.preventDefault()
-                          // Gérer le déplacement tactile
-                        }}
-                        onTouchEnd={(e) => {
-                          e.preventDefault()
-                          handleSlotDragEnd(e as any)
-                        }}
                         onPointerMove={onPointerMove}
                         onPointerUp={(e) => onPointerUp(e)}
                         onClick={(e) => {
@@ -863,10 +819,9 @@ const PlanningGrid: React.FC = () => {
                     ) : null}
                   </div>
                 )
-                })}
-              </React.Fragment>
-            ))}
-          </div>
+              })}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 

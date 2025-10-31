@@ -84,17 +84,13 @@ const BlockPalette: React.FC = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-4">
-      <div className="flex items-center space-x-2 mb-2 sm:mb-4">
-        <div className="w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-r from-blue-500 to-purple-500 rounded"></div>
-        <h3 className="text-sm sm:text-lg font-semibold text-gray-900">
-          <span className="hidden sm:inline">Palette de blocs</span>
-          <span className="sm:hidden">Blocs</span>
-        </h3>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="flex items-center space-x-2 mb-4">
+        <div className="w-5 h-5 bg-gradient-to-r from-blue-500 to-purple-500 rounded"></div>
+        <h3 className="text-lg font-semibold text-gray-900">Palette de blocs</h3>
       </div>
       
-      {/* Layout responsive : horizontal sur mobile, vertical sur desktop */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1 sm:gap-2 lg:space-y-2 lg:block">
+      <div className="space-y-2">
         {BLOCK_TEMPLATES.map((template) => {
           const colors = CATEGORY_COLORS[template.category]
           
@@ -104,26 +100,23 @@ const BlockPalette: React.FC = () => {
               draggable
               onDragStart={(e) => handleDragStart(e, template)}
               onDragEnd={handleDragEnd}
-              className="p-2 sm:p-3 rounded-lg border-2 border-dashed border-gray-300 cursor-grab active:cursor-grabbing transition-all duration-200 hover:border-gray-400 hover:shadow-md transform hover:scale-105 lg:mb-2"
+              className="p-3 rounded-lg border-2 border-dashed border-gray-300 cursor-grab active:cursor-grabbing transition-all duration-200 hover:border-gray-400 hover:shadow-md transform hover:scale-105"
               style={{
                 backgroundColor: colors.bgLight,
                 borderColor: colors.color + '40'
               }}
             >
-              <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="flex items-center space-x-3">
                 <div
-                  className="w-3 h-3 sm:w-4 sm:h-4 rounded-full flex-shrink-0"
+                  className="w-4 h-4 rounded-full"
                   style={{ backgroundColor: colors.color }}
                 ></div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-xs sm:text-sm truncate" style={{ color: colors.textLight }}>
+                <div className="flex-1">
+                  <div className="font-medium text-sm" style={{ color: colors.textLight }}>
                     {template.title}
                   </div>
-                  <div className="text-xs text-gray-500 hidden sm:block">
+                  <div className="text-xs text-gray-500">
                     {template.description} • {template.defaultDuration}min
-                  </div>
-                  <div className="text-xs text-gray-500 sm:hidden">
-                    {template.defaultDuration}min
                   </div>
                 </div>
               </div>
@@ -132,13 +125,12 @@ const BlockPalette: React.FC = () => {
         })}
       </div>
       
-      <div className="mt-2 sm:mt-4 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200 lg:block hidden sm:block">
+      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
         <div className="text-xs text-blue-700 font-medium mb-1">
           💡 Comment utiliser
         </div>
         <div className="text-xs text-blue-600">
-          <span className="hidden lg:inline">Glissez-déposez les blocs dans le planning. Une fois placés, vous pourrez les redimensionner et les modifier.</span>
-          <span className="lg:hidden">Glissez-déposez dans le planning</span>
+          Glissez-déposez les blocs dans le planning. Une fois placés, vous pourrez les redimensionner et les modifier.
         </div>
       </div>
     </div>
