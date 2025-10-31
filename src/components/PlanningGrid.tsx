@@ -343,22 +343,23 @@ const PlanningGrid: React.FC = () => {
   const [tempEndTime, setTempEndTime] = useState<number>(0)
   
   const draggingRef = useRef<{
-    kind: "resize-start" | "resize-end"
+    kind: "resize-start" | "resize-end" | "resize-horizontal"
     startAt: number
     endAt: number
     pointerStartY: number
+    pointerStartX: number
   } | null>(null)
 
   // Constantes de configuration
   const PX_PER_MIN = 1.6
-  const STEP_MIN = 15
-  const MIN_DURATION = 15
+  const STEP_MIN = 60
+  const MIN_DURATION = 60
 
   const snap = (m: number) => Math.round(m / STEP_MIN) * STEP_MIN
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 
   // Au clic sur la poignée
-  const onPointerDown = (slot: SimpleSlot, kind: "resize-start" | "resize-end") => (e: React.PointerEvent) => {
+  const onPointerDown = (slot: SimpleSlot, kind: "resize-start" | "resize-end" | "resize-horizontal") => (e: React.PointerEvent) => {
     e.preventDefault()
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -374,6 +375,7 @@ const PlanningGrid: React.FC = () => {
       startAt: slot.start_time,
       endAt: slot.end_time,
       pointerStartY: e.clientY,
+      pointerStartX: e.clientX,
     }
   }
 
@@ -381,40 +383,82 @@ const PlanningGrid: React.FC = () => {
   const onPointerMove = (e: React.PointerEvent) => {
     if (!draggingRef.current || !resizingSlot) return
 
-    const { kind, startAt, endAt, pointerStartY } = draggingRef.current
-    const deltaMin = (e.clientY - pointerStartY) / PX_PER_MIN
-    const delta = snap(deltaMin)
+    const { kind, startAt, endAt, pointerStartY, pointerStartX } = draggingRef.current
 
-    if (kind === "resize-start") {
-      let next = clamp(startAt + delta, 0, endAt - MIN_DURATION)
-      setTempStartTime(next)
+    if (kind === "resize-horizontal") {
+      // Étirement horizontal : pas de modification des temps, juste feedback visuel
+      const deltaX = e.clientX - pointerStartX
+      const deltaDays = Math.round(deltaX / 200) // 200px par jour approximativement
+      console.log('📏 Étirement horizontal:', { deltaX, deltaDays })
+      // Pas de modification des temps pour l'horizontal
     } else {
-      let next = clamp(endAt + delta, startAt + MIN_DURATION, 24 * 60)
-      setTempEndTime(next)
+      // Étirement vertical
+      const deltaMin = (e.clientY - pointerStartY) / PX_PER_MIN
+      const delta = snap(deltaMin)
+
+      if (kind === "resize-start") {
+        let next = clamp(startAt + delta, 0, endAt - MIN_DURATION)
+        setTempStartTime(next)
+      } else {
+        let next = clamp(endAt + delta, startAt + MIN_DURATION, 24 * 60)
+        setTempEndTime(next)
+      }
     }
   }
 
   // À la fin du drag
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     if (!draggingRef.current || !resizingSlot) return
     
-    const finalStartTime = snap(tempStartTime)
-    const finalEndTime = snap(tempEndTime)
+    const { kind, pointerStartX } = draggingRef.current
     
-    console.log('✅ Fin étirement, mise à jour:', { 
-      slotId: resizingSlot.id, 
-      start_time: finalStartTime, 
-      end_time: finalEndTime 
-    })
-    
-    // Mise à jour via API
-    updateSlotMutation.mutate({
-      slotId: resizingSlot.id,
-      slotData: {
-        start_time: finalStartTime,
-        end_time: finalEndTime
+    if (kind === "resize-horizontal") {
+      // Étirement horizontal : créer des blocs séparés sur plusieurs jours
+      const deltaX = e.clientX - pointerStartX
+      const deltaDays = Math.round(deltaX / 200) // 200px par jour
+      
+      if (deltaDays > 0) {
+        const numDays = Math.min(6, deltaDays) // Maximum 6 jours supplémentaires
+        
+        console.log('✅ Création blocs sur', numDays + 1, 'jours')
+        
+        // Créer des créneaux séparés sur les jours suivants
+        for (let i = 1; i <= numDays; i++) {
+          const newDate = new Date(resizingSlot.date)
+          newDate.setDate(newDate.getDate() + i)
+          
+          createSlotMutation.mutate({
+            employee_id: Number(selectedEmployeeId),
+            date: newDate.toISOString().split('T')[0],
+            day_of_week: (resizingSlot.day_of_week + i) % 7,
+            start_time: resizingSlot.start_time,
+            end_time: resizingSlot.end_time,
+            title: resizingSlot.title,
+            category: resizingSlot.category,
+            comment: resizingSlot.comment || ''
+          })
+        }
       }
-    })
+    } else {
+      // Étirement vertical : mise à jour de la durée
+      const finalStartTime = snap(tempStartTime)
+      const finalEndTime = snap(tempEndTime)
+      
+      console.log('✅ Fin étirement vertical, mise à jour:', { 
+        slotId: resizingSlot.id, 
+        start_time: finalStartTime, 
+        end_time: finalEndTime 
+      })
+      
+      // Mise à jour via API
+      updateSlotMutation.mutate({
+        slotId: resizingSlot.id,
+        slotData: {
+          start_time: finalStartTime,
+          end_time: finalEndTime
+        }
+      })
+    }
     
     // Nettoyage
     draggingRef.current = null
@@ -666,7 +710,7 @@ const PlanningGrid: React.FC = () => {
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
                         onDragEnd={handleSlotDragEnd}
                         onPointerMove={onPointerMove}
-                        onPointerUp={onPointerUp}
+                        onPointerUp={(e) => onPointerUp(e)}
                         onClick={(e) => {
                           if (resizingSlot) {
                             e.preventDefault()
@@ -701,13 +745,25 @@ const PlanningGrid: React.FC = () => {
                           className="resize-handle resize-handle-vertical resize-handle-bottom"
                           onPointerDown={onPointerDown(slot, "resize-end")}
                           onPointerMove={onPointerMove}
-                          onPointerUp={onPointerUp}
+                          onPointerUp={(e) => onPointerUp(e)}
                           style={{ 
                             touchAction: 'none', 
                             userSelect: 'none',
                             cursor: 'ns-resize'
                           }}
                           title="Glisser pour changer la durée"
+                        ></div>
+                        <div 
+                          className="resize-handle resize-handle-horizontal resize-handle-right"
+                          onPointerDown={onPointerDown(slot, "resize-horizontal")}
+                          onPointerMove={onPointerMove}
+                          onPointerUp={(e) => onPointerUp(e)}
+                          style={{ 
+                            touchAction: 'none', 
+                            userSelect: 'none',
+                            cursor: 'ew-resize'
+                          }}
+                          title="Glisser pour étaler sur plusieurs jours"
                         ></div>
                       </div>
                     ) : !slot ? (
