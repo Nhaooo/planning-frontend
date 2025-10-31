@@ -262,6 +262,26 @@
     grid-template-columns: 120px repeat(7, minmax(140px, 1fr));
   }
   
+  /* Grille responsive avec scroll horizontal */
+  .planning-grid-responsive {
+    @apply min-h-full overflow-x-auto;
+    display: grid;
+    grid-template-columns: 100px repeat(7, 160px);
+    min-width: 100%;
+    width: max-content;
+  }
+  
+  /* Container avec scroll horizontal */
+  .planning-container-mobile {
+    @apply overflow-x-auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  
+  .planning-container-mobile::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  
   .planning-time-cell {
     @apply h-16 border-b border-gray-200 flex items-center justify-center text-sm text-gray-600 font-medium;
     padding: 0.5rem;

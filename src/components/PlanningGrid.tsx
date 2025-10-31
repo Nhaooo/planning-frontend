@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { simplePlanningApi, SimpleSlot, SimpleSlotUpdate } from '../services/simplePlanningApi'
 import SlotModal from './SlotModal'
 import CompactBlockPalette from './CompactBlockPalette'
+import PlanningNavigation from './PlanningNavigation'
 import { getCategoryColors, getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
@@ -49,6 +50,11 @@ const PlanningGrid: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<SimpleSlot | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newSlotData, setNewSlotData] = useState<{ date: string; dayOfWeek: number; startTime: number } | null>(null)
+  
+  // États pour le scroll horizontal mobile
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const planningContainerRef = useRef<HTMLDivElement>(null)
 
 
   // Calculer la semaine à afficher selon le type sélectionné
@@ -583,6 +589,41 @@ const PlanningGrid: React.FC = () => {
     setSelectedWeekStart(getWeekStart(new Date()))
   }
 
+  // Fonctions pour le scroll horizontal
+  const checkScrollButtons = () => {
+    if (planningContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = planningContainerRef.current
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1)
+    }
+  }
+
+  const scrollLeft = () => {
+    if (planningContainerRef.current) {
+      planningContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' })
+    }
+  }
+
+  const scrollRight = () => {
+    if (planningContainerRef.current) {
+      planningContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' })
+    }
+  }
+
+  // Vérifier les boutons de scroll au montage et lors du scroll
+  useEffect(() => {
+    checkScrollButtons()
+    const container = planningContainerRef.current
+    if (container) {
+      container.addEventListener('scroll', checkScrollButtons)
+      window.addEventListener('resize', checkScrollButtons)
+      return () => {
+        container.removeEventListener('scroll', checkScrollButtons)
+        window.removeEventListener('resize', checkScrollButtons)
+      }
+    }
+  }, [weekPlanning])
+
 
 
   if (!selectedEmployeeId) {
@@ -667,19 +708,184 @@ const PlanningGrid: React.FC = () => {
 
       {/* Grille de planning */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="grid grid-cols-8 gap-0">
-          {/* En-tête avec les jours */}
-          <div className="bg-gray-50 p-3 font-medium text-center border-b">Heures</div>
-          {DAYS.map((day, index) => (
-            <div key={day} className="bg-gray-50 p-3 font-medium text-center border-b">
-              {day}
-              <div className="text-xs text-gray-500 mt-1">
-                {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+        {/* Desktop: Grille normale */}
+        <div className="hidden xl:block">
+          <div className="grid grid-cols-8 gap-0">
+            {/* En-tête avec les jours */}
+            <div className="bg-gray-50 p-3 font-medium text-center border-b">Heures</div>
+            {DAYS.map((day, index) => (
+              <div key={day} className="bg-gray-50 p-3 font-medium text-center border-b">
+                {day}
+                <div className="text-xs text-gray-500 mt-1">
+                  {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+            
+            {/* Lignes d'heures desktop */}
+            {HOURS.map(hour => (
+              <React.Fragment key={hour}>
+                {/* Colonne des heures */}
+                <div className="bg-gray-50 p-3 text-center font-medium border-b border-r">
+                  {hour}:00
+                </div>
+                
+                {/* Cellules pour chaque jour */}
+                {DAYS.map((_, dayIndex) => {
+                  const slot = getSlotAtTime(dayIndex, hour)
+                  const shouldShowSlot = slot && isSlotStart(slot, hour)
+                  // Utiliser les temps temporaires pendant l'étirement pour feedback visuel
+                  const isBeingResized = slot && resizingSlot?.id === slot.id
+                  const isHorizontalResize = isBeingResized && draggingRef.current?.kind === "resize-horizontal"
+                  
+                  // Preview horizontal : afficher les futurs blocs
+                  const isHorizontalPreview = resizingSlot && !slot && horizontalPreviewDays > 0 && 
+                    draggingRef.current?.kind === "resize-horizontal" && 
+                    dayIndex > getDayIndex(resizingSlot.date) && 
+                    dayIndex <= getDayIndex(resizingSlot.date) + horizontalPreviewDays &&
+                    hour === resizingSlot.start_time
 
-          {/* Lignes d'heures */}
+                  const slotHeight = slot ? getSlotHeight(slot) : 0
+
+                  return (
+                    <div
+                      key={`${dayIndex}-${hour}`}
+                      className={`
+                        relative h-16 border-b border-r cursor-pointer transition-colors
+                        ${slot ? '' : 'hover:bg-gray-50'}
+                      `}
+                      style={slot ? getCellBackgroundStyle(slot.category) : {}}
+                      onClick={() => {
+                        if (resizingSlot) return // Empêcher clic pendant étirement
+                        slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)
+                      }}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, dayIndex, hour)}
+                    >
+                      {shouldShowSlot ? (
+                        <div 
+                          className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
+                            isBeingResized ? (isHorizontalResize ? 'slot-resizing-horizontal' : 'slot-resizing') : ''
+                          }`}
+                          style={{
+                            ...getSlotStyle(slot.category),
+                            height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
+                            minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
+                          }}
+                          draggable={!resizingSlot}
+                          onDragStart={(e) => handleSlotDragStart(e, slot)}
+                          onDragEnd={handleSlotDragEnd}
+                          onPointerMove={onPointerMove}
+                          onPointerUp={(e) => onPointerUp(e)}
+                        >
+                          <div className="font-medium text-xs">
+                            {slot.title}
+                          </div>
+                          <div className="text-xs opacity-90">
+                            {minutesToTime(isBeingResized ? tempStartTime : slot.start_time)} - {minutesToTime(isBeingResized ? tempEndTime : slot.end_time)}
+                            {isBeingResized && !isHorizontalResize && (
+                              <span className="text-blue-200 ml-1">
+                                ({Math.round((tempEndTime - tempStartTime) / 60 * 4) / 4}h)
+                              </span>
+                            )}
+                            {isHorizontalResize && (
+                              <span className="text-green-200 ml-1 animate-pulse">
+                                → Plusieurs jours
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs opacity-70 mt-1">
+                            {getCategoryColors(slot.category).name}
+                          </div>
+                          
+                          {/* Bouton de suppression */}
+                          <button
+                            onClick={(e) => handleDeleteSlot(slot.id, e)}
+                            className="absolute bottom-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
+                            aria-label="Supprimer le créneau"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                          
+                          {/* Handles d'étirement */}
+                          <div 
+                            className="resize-handle resize-handle-vertical resize-handle-bottom"
+                            onPointerDown={onPointerDown(slot, "resize-end")}
+                            onPointerMove={onPointerMove}
+                            onPointerUp={(e) => onPointerUp(e)}
+                            style={{ 
+                              touchAction: 'none', 
+                              userSelect: 'none',
+                              cursor: 'ns-resize'
+                            }}
+                            title="Glisser pour changer la durée"
+                          ></div>
+                          <div 
+                            className="resize-handle resize-handle-horizontal resize-handle-right"
+                            onPointerDown={onPointerDown(slot, "resize-horizontal")}
+                            onPointerMove={onPointerMove}
+                            onPointerUp={(e) => onPointerUp(e)}
+                            style={{ 
+                              touchAction: 'none', 
+                              userSelect: 'none',
+                              cursor: 'ew-resize'
+                            }}
+                            title="Glisser pour étaler sur plusieurs jours"
+                          ></div>
+                        </div>
+                      ) : isHorizontalPreview ? (
+                          // Preview horizontal : bloc fantôme
+                          <div 
+                            className="absolute inset-1 rounded p-1 text-xs overflow-hidden z-5 pointer-events-none"
+                            style={{
+                              ...getSlotStyle(resizingSlot.category),
+                              opacity: 0.5,
+                              border: '2px dashed rgba(34, 197, 94, 0.8)',
+                              background: `${getSlotStyle(resizingSlot.category).backgroundColor}80`, // 50% opacity
+                              height: `${getSlotHeight(resizingSlot) * 64 - 8}px`,
+                              minHeight: getSlotHeight(resizingSlot) < 1 ? `${getSlotHeight(resizingSlot) * 64 - 8}px` : '56px',
+                              color: getSlotStyle(resizingSlot.category).color
+                            }}
+                          >
+                            <div className="font-medium text-xs">
+                              {resizingSlot.title}
+                            </div>
+                            <div className="text-xs opacity-90">
+                              {minutesToTime(resizingSlot.start_time)} - {minutesToTime(resizingSlot.end_time)}
+                            </div>
+                            <div className="text-xs opacity-70 mt-1 animate-pulse text-green-600">
+                              Preview
+                            </div>
+                          </div>
+                        ) : null}
+                    </div>
+                  )
+                })}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile/Tablette: Grille avec scroll horizontal */}
+        <div className="xl:hidden">
+          <div 
+            ref={planningContainerRef}
+            className="planning-container-mobile"
+          >
+            <div className="planning-grid-responsive">
+              {/* En-tête avec les jours mobile */}
+              <div className="bg-gray-50 p-2 font-medium text-center border-b text-sm">Heures</div>
+              {DAYS.map((day, index) => (
+                <div key={day} className="bg-gray-50 p-2 font-medium text-center border-b text-sm">
+                  <div className="truncate">{day.slice(0, 3)}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+              
+              {/* Lignes d'heures mobile */}
           {HOURS.map(hour => (
             <React.Fragment key={hour}>
               {/* Colonne des heures */}
@@ -828,10 +1034,18 @@ const PlanningGrid: React.FC = () => {
               })}
             </React.Fragment>
           ))}
+            </div>
+          </div>
         </div>
       </div>
 
-
+      {/* Navigation horizontale pour mobile */}
+      <PlanningNavigation
+        onScrollLeft={scrollLeft}
+        onScrollRight={scrollRight}
+        canScrollLeft={canScrollLeft}
+        canScrollRight={canScrollRight}
+      />
 
       {/* Modal */}
       {isModalOpen && (
