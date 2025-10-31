@@ -4,11 +4,10 @@ import { Plus, Trash2 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { simplePlanningApi, SimpleSlot, SimpleSlotUpdate } from '../services/simplePlanningApi'
 import SlotModal from './SlotModal'
-import { getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
-import useFluidMetrics from '../hooks/useFluidMetrics'
+import { getCategoryColors, getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-const HOURS = Array.from({ length: 13 }, (_, i) => i + 8) // 8h à 20h
+const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i) // 7h à 20h
 
 // Utilitaires de conversion
 const minutesToTime = (minutes: number): string => {
@@ -45,8 +44,6 @@ const PlanningGrid: React.FC = () => {
     setSelectedWeekStart 
   } = usePlanningStore()
   const queryClient = useQueryClient()
-  const containerRef = useRef<HTMLDivElement>(null)
-  const { minutesToPixels, pixelsToMinutes, snapToGrid } = useFluidMetrics(containerRef)
   
   const [selectedSlot, setSelectedSlot] = useState<SimpleSlot | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -180,18 +177,11 @@ const PlanningGrid: React.FC = () => {
 
   // État pour tracker le type de drag en cours
   const [dragType, setDragType] = useState<'palette' | 'existing' | null>(null)
-  const [placementPreview, setPlacementPreview] = useState<{
-    dayIndex: number
-    startTime: number
-    endTime: number
-    title: string
-    category: string
-  } | null>(null)
   
 
 
   // Gestionnaires drag & drop
-  const handleDragOver = (e: React.DragEvent, dayIndex: number, hour: number) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
@@ -205,33 +195,11 @@ const PlanningGrid: React.FC = () => {
     // Ajouter une classe pour le feedback visuel
     const target = e.currentTarget as HTMLElement
     target.classList.add('drag-over')
-    
-    // Afficher le preview de placement
-    try {
-      const draggedData = JSON.parse(e.dataTransfer.getData('application/json'))
-      const startTime = hour * 60
-      const duration = draggedData.isExistingSlot 
-        ? draggedData.end_time - draggedData.start_time 
-        : draggedData.defaultDuration
-      
-      const freeSlot = findFreeSlot(dayIndex, startTime, duration)
-      
-      setPlacementPreview({
-        dayIndex: freeSlot.dayIndex,
-        startTime: freeSlot.startTime,
-        endTime: freeSlot.startTime + duration,
-        title: draggedData.title,
-        category: draggedData.category
-      })
-    } catch (error) {
-      // Ignore les erreurs de parsing pendant le drag
-    }
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
     const target = e.currentTarget as HTMLElement
     target.classList.remove('drag-over')
-    setPlacementPreview(null)
   }
 
   const handleDrop = (e: React.DragEvent, dayIndex: number, hour: number) => {
@@ -243,7 +211,6 @@ const PlanningGrid: React.FC = () => {
     // Nettoyer le feedback visuel
     const target = e.currentTarget as HTMLElement
     target.classList.remove('drag-over')
-    setPlacementPreview(null)
     
     if (!selectedEmployeeId) {
       console.log('❌ Pas d\'employé sélectionné')
@@ -252,6 +219,7 @@ const PlanningGrid: React.FC = () => {
     
     try {
       const draggedData = JSON.parse(e.dataTransfer.getData('application/json'))
+      const date = addDaysToDate(displayWeekStart, dayIndex)
       const startTime = hour * 60
       
       console.log('📦 Données draggées:', draggedData)
@@ -259,17 +227,14 @@ const PlanningGrid: React.FC = () => {
       if (draggedData.isExistingSlot) {
         // Déplacement d'un créneau existant
         const duration = draggedData.end_time - draggedData.start_time
+        const endTime = startTime + duration
         
-        // Utiliser le système de collision pour trouver une place libre
-        const freeSlot = findFreeSlot(dayIndex, startTime, duration)
-        const finalDate = addDaysToDate(displayWeekStart, freeSlot.dayIndex)
-        const endTime = freeSlot.startTime + duration
-        
-        console.log('🎯 Déplacement créneau avec collision:', { 
+        console.log('🎯 Déplacement créneau:', { 
           draggedData, 
-          originalPosition: { dayIndex, hour, startTime },
-          finalPosition: { dayIndex: freeSlot.dayIndex, startTime: freeSlot.startTime },
-          date: finalDate, 
+          dayIndex, 
+          hour, 
+          date, 
+          startTime, 
           endTime,
           selectedEmployeeId,
           employeeIdType: typeof selectedEmployeeId
@@ -277,9 +242,9 @@ const PlanningGrid: React.FC = () => {
         
         const updateData = {
           employee_id: Number(selectedEmployeeId),
-          date: finalDate,
-          day_of_week: freeSlot.dayIndex,
-          start_time: freeSlot.startTime,
+          date: date,
+          day_of_week: dayIndex,
+          start_time: startTime,
           end_time: endTime,
           title: draggedData.title,
           category: draggedData.category,
@@ -295,9 +260,9 @@ const PlanningGrid: React.FC = () => {
         // D'abord créer le nouveau créneau (duplication instantanée)
         createSlotMutation.mutate({
           employee_id: Number(selectedEmployeeId),
-          date: finalDate,
-          day_of_week: freeSlot.dayIndex,
-          start_time: freeSlot.startTime,
+          date: date,
+          day_of_week: dayIndex,
+          start_time: startTime,
           end_time: endTime,
           title: draggedData.title,
           category: draggedData.category,
@@ -322,27 +287,16 @@ const PlanningGrid: React.FC = () => {
         })
       } else {
         // Création d'un nouveau créneau depuis la palette
-        const duration = draggedData.defaultDuration
+        const endTime = startTime + draggedData.defaultDuration
         
-        // Utiliser le système de collision pour trouver une place libre
-        const freeSlot = findFreeSlot(dayIndex, startTime, duration)
-        const finalDate = addDaysToDate(displayWeekStart, freeSlot.dayIndex)
-        const endTime = freeSlot.startTime + duration
-        
-        console.log('🎯 Création créneau avec collision:', { 
-          draggedData, 
-          originalPosition: { dayIndex, hour, startTime },
-          finalPosition: { dayIndex: freeSlot.dayIndex, startTime: freeSlot.startTime },
-          date: finalDate, 
-          endTime 
-        })
+        console.log('🎯 Création créneau:', { draggedData, dayIndex, hour, date, startTime, endTime })
         
         // Créer directement le créneau
         createSlotMutation.mutate({
           employee_id: selectedEmployeeId,
-          date: finalDate,
-          day_of_week: freeSlot.dayIndex,
-          start_time: freeSlot.startTime,
+          date: date,
+          day_of_week: dayIndex,
+          start_time: startTime,
           end_time: endTime,
           title: draggedData.title,
           category: draggedData.category,
@@ -397,7 +351,12 @@ const PlanningGrid: React.FC = () => {
     pointerStartX: number
   } | null>(null)
 
-  // Fonctions utilitaires
+  // Constantes de configuration
+  const PX_PER_MIN = 1.6
+  const STEP_MIN = 60
+  const MIN_DURATION = 60
+
+  const snap = (m: number) => Math.round(m / STEP_MIN) * STEP_MIN
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
   
   // Fonction pour obtenir l'index du jour à partir d'une date
@@ -409,108 +368,11 @@ const PlanningGrid: React.FC = () => {
     return diffDays
   }
 
-  // Fonction pour vérifier si deux créneaux se chevauchent
-  const slotsOverlap = (slot1: { start_time: number; end_time: number; dayIndex: number }, 
-                       slot2: { start_time: number; end_time: number; dayIndex: number }) => {
-    // Même jour et chevauchement temporel
-    return slot1.dayIndex === slot2.dayIndex && 
-           slot1.start_time < slot2.end_time && 
-           slot1.end_time > slot2.start_time
-  }
-
-  // Fonction pour trouver une place libre pour un nouveau créneau
-  const findFreeSlot = (dayIndex: number, startTime: number, duration: number) => {
-    const endTime = startTime + duration
-    const newSlot = { start_time: startTime, end_time: endTime, dayIndex }
-    
-    // Récupérer tous les créneaux existants pour ce jour
-    const existingSlots = weekPlanning?.slots?.filter(slot => {
-      const slotDayIndex = getDayIndex(slot.date)
-      return slotDayIndex === dayIndex
-    }) || []
-
-    // Vérifier s'il y a collision
-    const hasCollision = existingSlots.some(slot => 
-      slotsOverlap(newSlot, { 
-        start_time: slot.start_time, 
-        end_time: slot.end_time, 
-        dayIndex 
-      })
-    )
-
-    if (!hasCollision) {
-      return { dayIndex, startTime }
-    }
-
-    // Chercher une place libre en décalant par pas de 15 minutes
-    for (let hour = 8; hour <= 20; hour++) {
-      for (let quarter = 0; quarter < 4; quarter++) {
-        const testStartTime = hour * 60 + quarter * 15
-        const testEndTime = testStartTime + duration
-        
-        // Ne pas dépasser 20h
-        if (testEndTime > 20 * 60) continue
-        
-        const testSlot = { start_time: testStartTime, end_time: testEndTime, dayIndex }
-        
-        const testHasCollision = existingSlots.some(slot => 
-          slotsOverlap(testSlot, { 
-            start_time: slot.start_time, 
-            end_time: slot.end_time, 
-            dayIndex 
-          })
-        )
-        
-        if (!testHasCollision) {
-          return { dayIndex, startTime: testStartTime }
-        }
-      }
-    }
-
-    // Si aucune place libre trouvée, essayer les jours suivants
-    for (let nextDay = dayIndex + 1; nextDay < 7; nextDay++) {
-      const nextDaySlots = weekPlanning?.slots?.filter(slot => {
-        const slotDayIndex = getDayIndex(slot.date)
-        return slotDayIndex === nextDay
-      }) || []
-
-      for (let hour = 8; hour <= 20; hour++) {
-        for (let quarter = 0; quarter < 4; quarter++) {
-          const testStartTime = hour * 60 + quarter * 15
-          const testEndTime = testStartTime + duration
-          
-          if (testEndTime > 20 * 60) continue
-          
-          const testSlot = { start_time: testStartTime, end_time: testEndTime, dayIndex: nextDay }
-          
-          const testHasCollision = nextDaySlots.some(slot => 
-            slotsOverlap(testSlot, { 
-              start_time: slot.start_time, 
-              end_time: slot.end_time, 
-              dayIndex: nextDay 
-            })
-          )
-          
-          if (!testHasCollision) {
-            return { dayIndex: nextDay, startTime: testStartTime }
-          }
-        }
-      }
-    }
-
-    // En dernier recours, retourner la position originale
-    return { dayIndex, startTime }
-  }
-
   // Au clic sur la poignée
   const onPointerDown = (slot: SimpleSlot, kind: "resize-start" | "resize-end" | "resize-horizontal") => (e: React.PointerEvent) => {
     e.preventDefault()
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
-    
-    // Bloquer le scroll de la page pendant l'étirement
-    document.body.style.overflow = 'hidden'
-    document.body.style.touchAction = 'none'
     
     console.log('🎯 Début étirement PointerEvent:', { slot, kind })
     
@@ -540,16 +402,15 @@ const PlanningGrid: React.FC = () => {
       setHorizontalPreviewDays(deltaDays)
       console.log('📏 Étirement horizontal:', { deltaX, deltaDays })
     } else {
-      // Étirement vertical avec système fluide
-      const deltaPixels = e.clientY - pointerStartY
-      const deltaMinutes = pixelsToMinutes(deltaPixels)
-      const snappedDelta = snapToGrid(deltaMinutes, 15)
+      // Étirement vertical
+      const deltaMin = (e.clientY - pointerStartY) / PX_PER_MIN
+      const delta = snap(deltaMin)
 
       if (kind === "resize-start") {
-        let next = clamp(startAt + snappedDelta, 0, endAt - 15)
+        let next = clamp(startAt + delta, 0, endAt - MIN_DURATION)
         setTempStartTime(next)
       } else {
-        let next = clamp(endAt + snappedDelta, startAt + 15, 24 * 60)
+        let next = clamp(endAt + delta, startAt + MIN_DURATION, 24 * 60)
         setTempEndTime(next)
       }
     }
@@ -590,8 +451,8 @@ const PlanningGrid: React.FC = () => {
       }
     } else {
       // Étirement vertical : mise à jour de la durée
-      const finalStartTime = snapToGrid(tempStartTime, 15)
-      const finalEndTime = snapToGrid(tempEndTime, 15)
+      const finalStartTime = snap(tempStartTime)
+      const finalEndTime = snap(tempEndTime)
       
       console.log('✅ Fin étirement vertical, mise à jour:', { 
         slotId: resizingSlot.id, 
@@ -615,10 +476,6 @@ const PlanningGrid: React.FC = () => {
     setTempStartTime(0)
     setTempEndTime(0)
     setHorizontalPreviewDays(0)
-    
-    // Restaurer le scroll de la page
-    document.body.style.overflow = ''
-    document.body.style.touchAction = ''
   }
 
      const handleSlotClick = (slot: SimpleSlot) => {
@@ -769,95 +626,95 @@ const PlanningGrid: React.FC = () => {
   }
 
   return (
-    <div ref={containerRef} className="fluid-container space-y-4 safe-area">
+    <div className="space-y-4">
 
-      {/* Navigation semaine */}
-      <div className="bg-white fluid-spacing-md rounded-lg shadow">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-sm">
-          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-0">
-            <button 
-              onClick={goToPreviousWeek}
-              className="px-3 py-2 sm:px-4 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base"
-            >
-              <span className="hidden sm:inline">← Semaine précédente</span>
-              <span className="sm:hidden">← Préc.</span>
-            </button>
-            
-            <button 
-              onClick={goToNextWeek}
-              className="px-3 py-2 sm:px-4 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base sm:hidden"
-            >
-              Suiv. →
-            </button>
-          </div>
-          
-          <div className="text-center flex-1 sm:flex-none">
-            <h2 className="text-base sm:text-lg font-semibold">
-              {selectedWeekKind === 'type' && 'Semaine type'}
-              {selectedWeekKind === 'current' && (
-                <>
-                  <span className="hidden sm:inline">Semaine actuelle - {new Date(displayWeekStart).toLocaleDateString('fr-FR')}</span>
-                  <span className="sm:hidden">Actuelle</span>
-                </>
-              )}
-              {selectedWeekKind === 'next' && (
-                <>
-                  <span className="hidden sm:inline">Semaine suivante - {new Date(displayWeekStart).toLocaleDateString('fr-FR')}</span>
-                  <span className="sm:hidden">Suivante</span>
-                </>
-              )}
-              {selectedWeekKind === 'vacation' && (
-                <>
-                  <span className="hidden sm:inline">Vacances {selectedVacationPeriod} - {new Date(displayWeekStart).toLocaleDateString('fr-FR')}</span>
-                  <span className="sm:hidden">Vacances {selectedVacationPeriod}</span>
-                </>
-              )}
-            </h2>
-            <button 
-              onClick={goToCurrentWeek}
-              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 mt-1"
-            >
-              <span className="hidden sm:inline">Aller à cette semaine</span>
-              <span className="sm:hidden">Cette semaine</span>
-            </button>
-          </div>
-          
+      {/* Navigation semaine responsive */}
+      <div className="flex items-center justify-between bg-white rounded-lg shadow header-responsive">
+        <button 
+          onClick={goToPreviousWeek}
+          className="btn-secondary touch-target"
+          style={{ touchAction: 'manipulation' }}
+          aria-label="Semaine précédente"
+        >
+          <span className="hidden sm:inline">← Semaine précédente</span>
+          <span className="sm:hidden">←</span>
+        </button>
+        
+        <div className="text-center flex-1 spacing-fluid-sm">
+          <h2 className="text-fluid-lg font-semibold">
+            {selectedWeekKind === 'type' && 'Semaine type'}
+            {selectedWeekKind === 'current' && (
+              <>
+                <span className="hidden md:inline">Semaine actuelle - </span>
+                {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
+              </>
+            )}
+            {selectedWeekKind === 'next' && (
+              <>
+                <span className="hidden md:inline">Semaine suivante - </span>
+                {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
+              </>
+            )}
+            {selectedWeekKind === 'vacation' && (
+              <>
+                <span className="hidden md:inline">Vacances {selectedVacationPeriod} - </span>
+                {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
+              </>
+            )}
+          </h2>
           <button 
-            onClick={goToNextWeek}
-            className="px-3 py-2 sm:px-4 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base hidden sm:block"
+            onClick={goToCurrentWeek}
+            className="text-fluid-sm text-blue-600 hover:text-blue-800 touch-target"
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Aller à cette semaine"
           >
-            Semaine suivante →
+            <span className="hidden sm:inline">Aller à cette semaine</span>
+            <span className="sm:hidden">Aujourd'hui</span>
           </button>
         </div>
+        
+        <button 
+          onClick={goToNextWeek}
+          className="btn-secondary touch-target"
+          style={{ touchAction: 'manipulation' }}
+          aria-label="Semaine suivante"
+        >
+          <span className="hidden sm:inline">Semaine suivante →</span>
+          <span className="sm:hidden">→</span>
+        </button>
       </div>
 
-      {/* Grille de planning */}
-      <div className="bg-white rounded-lg shadow overflow-hidden contain-layout">
-        <div className="overflow-x-auto">
-          <div className="fluid-grid grid-cols-8 min-w-[640px]" style={{ gridAutoRows: `var(--cell-height)` }}>
-            {/* En-tête avec les jours */}
-            <div className="bg-gray-50 fluid-cell font-medium text-center border-b fluid-text-sm">
-              <span className="hidden sm:inline">Heures</span>
-              <span className="sm:hidden">H</span>
-            </div>
-            {DAYS.map((day, index) => (
-              <div key={day} className="bg-gray-50 fluid-cell font-medium text-center border-b fluid-text-sm">
-                <span className="hidden sm:inline">{day}</span>
-                <span className="sm:hidden">{day.slice(0, 3)}</span>
-                <div className="fluid-text-xs text-gray-500 mt-1">
+      {/* Grille de planning responsive */}
+      <div className="bg-white rounded-lg shadow overflow-hidden main-container">
+        <div className="planning-grid-modern">
+          {/* En-tête avec les jours responsive */}
+          <div className="planning-time-cell bg-gray-50 border-b">
+            <span className="text-fluid-sm font-medium">Heures</span>
+          </div>
+          {DAYS.map((day, index) => (
+            <div key={day} className="planning-time-cell bg-gray-50 border-b">
+              <div className="text-center">
+                <span className="text-fluid-sm font-medium">
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day.slice(0, 3)}</span>
+                </span>
+                <div className="text-fluid-xs text-gray-500 mt-1">
                   {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
 
-          {/* Lignes d'heures */}
+          {/* Lignes d'heures responsives */}
           {HOURS.map(hour => (
-              <React.Fragment key={hour}>
-                {/* Colonne des heures */}
-                <div className="bg-gray-50 fluid-cell text-center font-medium border-b border-r fluid-text-sm">
+            <React.Fragment key={hour}>
+              {/* Colonne des heures responsive */}
+              <div className="planning-time-cell bg-gray-50 border-b border-r">
+                <span className="text-fluid-sm font-medium">
                   <span className="hidden sm:inline">{hour}:00</span>
                   <span className="sm:hidden">{hour}h</span>
-                </div>
+                </span>
+              </div>
               
               {/* Cellules pour chaque jour */}
               {DAYS.map((_, dayIndex) => {
@@ -875,35 +732,39 @@ const PlanningGrid: React.FC = () => {
                     hour === resizingSlot.start_time // Seulement au début du slot
                   const displayStartTime = isBeingResized ? tempStartTime : (slot?.start_time || 0)
                   const displayEndTime = isBeingResized ? tempEndTime : (slot?.end_time || 0)
+                  const displaySlot = slot ? { ...slot, start_time: displayStartTime, end_time: displayEndTime } : null
+                  const slotHeight = displaySlot ? getSlotHeight(displaySlot) : 1
                 
                 return (
                   <div 
                     key={`${hour}-${dayIndex}`}
                     className={`
-                      relative fluid-cell border-b border-r cursor-pointer transition-colors contain-paint
+                      relative border-b border-r cursor-pointer transition-colors touch-target
                       ${slot ? '' : 'hover:bg-gray-50'}
                     `}
-                    style={{ 
-                      height: `var(--cell-height)`,
-                      ...(slot ? getCellBackgroundStyle(slot.category) : {})
+                    style={{
+                      ...(slot ? getCellBackgroundStyle(slot.category) : {}),
+                      height: 'var(--cell-height)',
+                      minHeight: 'var(--cell-height)',
+                      touchAction: 'manipulation'
                     }}
                     onClick={() => {
                       if (resizingSlot) return // Empêcher clic pendant étirement
                       slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)
                     }}
-                    onDragOver={(e) => handleDragOver(e, dayIndex, hour)}
+                    onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, dayIndex, hour)}
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className={`absolute inset-1 text-white rounded fluid-spacing-xs fluid-text-sm overflow-hidden z-10 cursor-move slot-container will-change-transform ${
+                        className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
                           isBeingResized ? (isHorizontalResize ? 'slot-resizing-horizontal' : 'slot-resizing') : ''
                         }`}
                         style={{
                           ...getSlotStyle(slot.category),
-                          height: `${minutesToPixels(displayEndTime - displayStartTime)}px`,
-                          minHeight: `${minutesToPixels(15)}px` // 15 minutes minimum
+                          height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
+                          minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
                         }}
                         draggable={!resizingSlot}
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
@@ -918,49 +779,55 @@ const PlanningGrid: React.FC = () => {
                           }
                         }}
                       >
-                        <div className="font-medium truncate fluid-text-sm">{slot.title}</div>
-                        <div className={`fluid-text-xs opacity-75 ${isBeingResized ? (isHorizontalResize ? 'font-bold text-green-200' : 'font-bold text-blue-200') : ''}`}>
-                          <span className="hidden sm:inline">{minutesToTime(displayStartTime)} - {minutesToTime(displayEndTime)}</span>
-                          <span className="sm:hidden">{Math.floor(displayStartTime / 60)}h-{Math.floor(displayEndTime / 60)}h</span>
+                        <div className="font-medium truncate">{slot.title}</div>
+                        <div className={`opacity-80 ${isBeingResized ? (isHorizontalResize ? 'font-bold text-green-200' : 'font-bold text-blue-200') : ''}`}>
+                          {minutesToTime(displayStartTime)} - {minutesToTime(displayEndTime)}
                           {isBeingResized && !isHorizontalResize && (
-                            <span className="ml-1 text-blue-100 hidden sm:inline">
+                            <span className="ml-1 text-blue-100">
                               ({Math.round((displayEndTime - displayStartTime) / 60 * 10) / 10}h)
                             </span>
                           )}
                           {isHorizontalResize && (
                             <span className="ml-1 text-green-100 animate-pulse">
-                              <span className="hidden sm:inline">→ Plusieurs jours</span>
-                              <span className="sm:hidden">→ Multi</span>
+                              → Plusieurs jours
                             </span>
                           )}
                         </div>
-                        <div className="fluid-text-xs opacity-70 mt-1 hidden sm:block">
-                          {slot.comment && (
-                            <div className="truncate">{slot.comment}</div>
-                          )}
+                        <div className="text-xs opacity-70 mt-1">
+                          {getCategoryColors(slot.category).name}
                         </div>
                         
-                        {/* Bouton de suppression */}
+                        {/* Bouton de suppression optimisé tactile */}
                         <button
                           onClick={(e) => handleDeleteSlot(slot.id, e)}
-                          className="absolute top-1 right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
+                          className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center touch-target"
+                          style={{
+                            minWidth: 'var(--touch-target)',
+                            minHeight: 'var(--touch-target)',
+                            width: 'clamp(20px, 4vw, 32px)',
+                            height: 'clamp(20px, 4vw, 32px)',
+                            touchAction: 'manipulation'
+                          }}
+                          aria-label="Supprimer le créneau"
                         >
-                          <Trash2 size={10} />
+                          <Trash2 size={12} />
                         </button>
                         
-                        {/* Handles d'étirement avec PointerEvents */}
+                        {/* Handles d'étirement optimisés pour tactile */}
                         <div 
                           className="resize-handle resize-handle-vertical resize-handle-bottom touch-target"
                           onPointerDown={onPointerDown(slot, "resize-end")}
                           onPointerMove={onPointerMove}
                           onPointerUp={(e) => onPointerUp(e)}
                           style={{ 
-                            height: `var(--drag-handle)`,
                             touchAction: 'none', 
                             userSelect: 'none',
-                            cursor: 'ns-resize'
+                            cursor: 'ns-resize',
+                            WebkitTouchCallout: 'none',
+                            WebkitUserSelect: 'none'
                           }}
                           title="Glisser pour changer la durée"
+                          aria-label="Redimensionner verticalement"
                         ></div>
                         <div 
                           className="resize-handle resize-handle-horizontal resize-handle-right touch-target"
@@ -968,12 +835,14 @@ const PlanningGrid: React.FC = () => {
                           onPointerMove={onPointerMove}
                           onPointerUp={(e) => onPointerUp(e)}
                           style={{ 
-                            width: `var(--drag-handle)`,
                             touchAction: 'none', 
                             userSelect: 'none',
-                            cursor: 'ew-resize'
+                            cursor: 'ew-resize',
+                            WebkitTouchCallout: 'none',
+                            WebkitUserSelect: 'none'
                           }}
                           title="Glisser pour étaler sur plusieurs jours"
+                          aria-label="Redimensionner horizontalement"
                         ></div>
                       </div>
                     ) : isHorizontalPreview ? (
@@ -988,40 +857,12 @@ const PlanningGrid: React.FC = () => {
                             height: `${getSlotHeight(resizingSlot) * 64 - 8}px`,
                           }}
                         >
-                          <div className="font-medium truncate text-green-100 text-xs sm:text-sm">{resizingSlot.title}</div>
+                          <div className="font-medium truncate text-green-100">{resizingSlot.title}</div>
                           <div className="text-xs opacity-75 text-green-200">
-                            <span className="hidden sm:inline">{minutesToTime(resizingSlot.start_time)} - {minutesToTime(resizingSlot.end_time)}</span>
-                            <span className="sm:hidden">{Math.floor(resizingSlot.start_time / 60)}h-{Math.floor(resizingSlot.end_time / 60)}h</span>
+                            {minutesToTime(resizingSlot.start_time)} - {minutesToTime(resizingSlot.end_time)}
                           </div>
                           <div className="text-xs opacity-75 text-green-200 animate-pulse">
-                            <span className="hidden sm:inline">Preview</span>
-                            <span className="sm:hidden">Prev</span>
-                          </div>
-                        </div>
-                      ) : placementPreview && 
-                           placementPreview.dayIndex === dayIndex && 
-                           hour >= placementPreview.startTime / 60 && 
-                           hour < placementPreview.endTime / 60 &&
-                           hour === Math.floor(placementPreview.startTime / 60) ? (
-                        // Preview de placement avec collision
-                        <div 
-                          className="absolute inset-1 rounded p-1 text-xs overflow-hidden z-20 pointer-events-none"
-                          style={{
-                            ...getSlotStyle(placementPreview.category),
-                            opacity: 0.7,
-                            border: '2px dashed rgba(59, 130, 246, 0.8)',
-                            background: `${getSlotStyle(placementPreview.category).backgroundColor}90`,
-                            height: `${((placementPreview.endTime - placementPreview.startTime) / 60) * 64 - 8}px`,
-                          }}
-                        >
-                          <div className="font-medium truncate text-blue-100 text-xs sm:text-sm">{placementPreview.title}</div>
-                          <div className="text-xs opacity-75 text-blue-200">
-                            <span className="hidden sm:inline">{minutesToTime(placementPreview.startTime)} - {minutesToTime(placementPreview.endTime)}</span>
-                            <span className="sm:hidden">{Math.floor(placementPreview.startTime / 60)}h-{Math.floor(placementPreview.endTime / 60)}h</span>
-                          </div>
-                          <div className="text-xs opacity-75 text-blue-200 animate-pulse">
-                            <span className="hidden sm:inline">Placement automatique</span>
-                            <span className="sm:hidden">Auto</span>
+                            Preview
                           </div>
                         </div>
                       ) : !slot ? (
@@ -1034,7 +875,6 @@ const PlanningGrid: React.FC = () => {
               })}
             </React.Fragment>
           ))}
-          </div>
         </div>
       </div>
 
