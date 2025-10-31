@@ -766,7 +766,7 @@ const PlanningGrid: React.FC = () => {
                         {/* Bouton de suppression */}
                         <button
                           onClick={(e) => handleDeleteSlot(slot.id, e)}
-                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
+                          className="absolute bottom-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
                           aria-label="Supprimer le créneau"
                         >
                           <Trash2 size={12} />

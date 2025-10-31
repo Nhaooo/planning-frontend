@@ -131,7 +131,7 @@ function App() {
                 <div className="xl:col-span-3 order-2 xl:order-1">
                   <PlanningGrid />
                 </div>
-                <div className="xl:col-span-1 order-1 xl:order-2">
+                <div className="xl:col-span-1 order-1 xl:order-2 hidden xl:block">
                   <Sidebar />
                 </div>
               </div>
