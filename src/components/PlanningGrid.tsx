@@ -628,92 +628,58 @@ const PlanningGrid: React.FC = () => {
   return (
     <div className="space-y-4">
 
-      {/* Navigation semaine responsive */}
-      <div className="flex items-center justify-between bg-white rounded-lg shadow header-responsive">
+      {/* Navigation semaine */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow">
         <button 
           onClick={goToPreviousWeek}
-          className="btn-secondary touch-target"
-          style={{ touchAction: 'manipulation' }}
-          aria-label="Semaine précédente"
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded"
         >
-          <span className="hidden sm:inline">← Semaine précédente</span>
-          <span className="sm:hidden">←</span>
+          ← Semaine précédente
         </button>
         
-        <div className="text-center flex-1 spacing-fluid-sm">
-          <h2 className="text-fluid-lg font-semibold">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold">
             {selectedWeekKind === 'type' && 'Semaine type'}
-            {selectedWeekKind === 'current' && (
-              <>
-                <span className="hidden md:inline">Semaine actuelle - </span>
-                {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
-              </>
-            )}
-            {selectedWeekKind === 'next' && (
-              <>
-                <span className="hidden md:inline">Semaine suivante - </span>
-                {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
-              </>
-            )}
-            {selectedWeekKind === 'vacation' && (
-              <>
-                <span className="hidden md:inline">Vacances {selectedVacationPeriod} - </span>
-                {new Date(displayWeekStart).toLocaleDateString('fr-FR')}
-              </>
-            )}
+            {selectedWeekKind === 'current' && `Semaine actuelle - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
+            {selectedWeekKind === 'next' && `Semaine suivante - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
+            {selectedWeekKind === 'vacation' && `Vacances ${selectedVacationPeriod} - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
           </h2>
           <button 
             onClick={goToCurrentWeek}
-            className="text-fluid-sm text-blue-600 hover:text-blue-800 touch-target"
-            style={{ touchAction: 'manipulation' }}
-            aria-label="Aller à cette semaine"
+            className="text-sm text-blue-600 hover:text-blue-800"
           >
-            <span className="hidden sm:inline">Aller à cette semaine</span>
-            <span className="sm:hidden">Aujourd'hui</span>
+            Aller à cette semaine
           </button>
         </div>
         
         <button 
           onClick={goToNextWeek}
-          className="btn-secondary touch-target"
-          style={{ touchAction: 'manipulation' }}
-          aria-label="Semaine suivante"
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded"
         >
-          <span className="hidden sm:inline">Semaine suivante →</span>
-          <span className="sm:hidden">→</span>
+          Semaine suivante →
         </button>
       </div>
 
-      {/* Grille de planning responsive */}
-      <div className="bg-white rounded-lg shadow overflow-hidden main-container">
-        <div className="planning-grid-modern">
-          {/* En-tête avec les jours responsive */}
-          <div className="planning-time-cell bg-gray-50 border-b">
-            <span className="text-fluid-sm font-medium">Heures</span>
-          </div>
+      {/* Grille de planning */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="grid grid-cols-8 gap-0">
+          {/* En-tête avec les jours */}
+          <div className="bg-gray-50 p-3 font-medium text-center border-b">Heures</div>
           {DAYS.map((day, index) => (
-            <div key={day} className="planning-time-cell bg-gray-50 border-b">
-              <div className="text-center">
-                <span className="text-fluid-sm font-medium">
-                  <span className="hidden sm:inline">{day}</span>
-                  <span className="sm:hidden">{day.slice(0, 3)}</span>
-                </span>
-                <div className="text-fluid-xs text-gray-500 mt-1">
-                  {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                </div>
+            <div key={day} className="bg-gray-50 p-3 font-medium text-center border-b">
+              {day}
+              <div className="text-xs text-gray-500 mt-1">
+                {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
               </div>
             </div>
           ))}
 
-          {/* Lignes d'heures responsives */}
+          {/* Lignes d'heures */}
           {HOURS.map(hour => (
             <React.Fragment key={hour}>
-              {/* Colonne des heures responsive */}
-              <div className="planning-time-cell bg-gray-50 border-b border-r">
-                <span className="text-fluid-sm font-medium">
-                  <span className="hidden sm:inline">{hour}:00</span>
-                  <span className="sm:hidden">{hour}h</span>
-                </span>
+              {/* Colonne des heures */}
+              <div className="bg-gray-50 p-3 text-center font-medium border-b border-r">
+                {hour}:00
               </div>
               
               {/* Cellules pour chaque jour */}
@@ -739,15 +705,10 @@ const PlanningGrid: React.FC = () => {
                   <div 
                     key={`${hour}-${dayIndex}`}
                     className={`
-                      relative border-b border-r cursor-pointer transition-colors touch-target
+                      relative h-16 border-b border-r cursor-pointer transition-colors
                       ${slot ? '' : 'hover:bg-gray-50'}
                     `}
-                    style={{
-                      ...(slot ? getCellBackgroundStyle(slot.category) : {}),
-                      height: 'var(--cell-height)',
-                      minHeight: 'var(--cell-height)',
-                      touchAction: 'manipulation'
-                    }}
+                    style={slot ? getCellBackgroundStyle(slot.category) : {}}
                     onClick={() => {
                       if (resizingSlot) return // Empêcher clic pendant étirement
                       slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)
@@ -797,52 +758,39 @@ const PlanningGrid: React.FC = () => {
                           {getCategoryColors(slot.category).name}
                         </div>
                         
-                        {/* Bouton de suppression optimisé tactile */}
+                        {/* Bouton de suppression */}
                         <button
                           onClick={(e) => handleDeleteSlot(slot.id, e)}
-                          className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center touch-target"
-                          style={{
-                            minWidth: 'var(--touch-target)',
-                            minHeight: 'var(--touch-target)',
-                            width: 'clamp(20px, 4vw, 32px)',
-                            height: 'clamp(20px, 4vw, 32px)',
-                            touchAction: 'manipulation'
-                          }}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
                           aria-label="Supprimer le créneau"
                         >
                           <Trash2 size={12} />
                         </button>
                         
-                        {/* Handles d'étirement optimisés pour tactile */}
+                        {/* Handles d'étirement */}
                         <div 
-                          className="resize-handle resize-handle-vertical resize-handle-bottom touch-target"
+                          className="resize-handle resize-handle-vertical resize-handle-bottom"
                           onPointerDown={onPointerDown(slot, "resize-end")}
                           onPointerMove={onPointerMove}
                           onPointerUp={(e) => onPointerUp(e)}
                           style={{ 
                             touchAction: 'none', 
                             userSelect: 'none',
-                            cursor: 'ns-resize',
-                            WebkitTouchCallout: 'none',
-                            WebkitUserSelect: 'none'
+                            cursor: 'ns-resize'
                           }}
                           title="Glisser pour changer la durée"
-                          aria-label="Redimensionner verticalement"
                         ></div>
                         <div 
-                          className="resize-handle resize-handle-horizontal resize-handle-right touch-target"
+                          className="resize-handle resize-handle-horizontal resize-handle-right"
                           onPointerDown={onPointerDown(slot, "resize-horizontal")}
                           onPointerMove={onPointerMove}
                           onPointerUp={(e) => onPointerUp(e)}
                           style={{ 
                             touchAction: 'none', 
                             userSelect: 'none',
-                            cursor: 'ew-resize',
-                            WebkitTouchCallout: 'none',
-                            WebkitUserSelect: 'none'
+                            cursor: 'ew-resize'
                           }}
                           title="Glisser pour étaler sur plusieurs jours"
-                          aria-label="Redimensionner horizontalement"
                         ></div>
                       </div>
                     ) : isHorizontalPreview ? (

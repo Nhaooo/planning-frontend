@@ -7,35 +7,35 @@
    ======================================== */
 
 :root {
-  /* Variables fluides pour la grille planning */
-  --px-per-minute: clamp(0.8px, 0.15vw, 1.2px);
+  /* Variables pour la grille planning */
+  --px-per-minute: 1px;
   --step-min: 15;
   --min-duration: 30;
   
-  /* Tailles fluides générales */
-  --cell-height: clamp(48px, 8vh, 80px);
-  --cell-min-width: clamp(120px, 15vw, 200px);
-  --header-height: clamp(60px, 10vh, 80px);
-  --sidebar-width: clamp(200px, 25vw, 300px);
+  /* Tailles fixes et raisonnables */
+  --cell-height: 64px;
+  --cell-min-width: 140px;
+  --header-height: 64px;
+  --sidebar-width: 250px;
   
-  /* Typographie fluide */
-  --text-xs: clamp(0.7rem, 1.5vw, 0.75rem);
-  --text-sm: clamp(0.8rem, 1.8vw, 0.875rem);
-  --text-base: clamp(0.9rem, 2vw, 1rem);
-  --text-lg: clamp(1rem, 2.2vw, 1.125rem);
-  --text-xl: clamp(1.1rem, 2.5vw, 1.25rem);
+  /* Typographie simple */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
   
-  /* Espacements fluides */
-  --spacing-xs: clamp(0.25rem, 0.5vw, 0.5rem);
-  --spacing-sm: clamp(0.5rem, 1vw, 0.75rem);
-  --spacing-md: clamp(0.75rem, 1.5vw, 1rem);
-  --spacing-lg: clamp(1rem, 2vw, 1.5rem);
-  --spacing-xl: clamp(1.5rem, 3vw, 2rem);
+  /* Espacements fixes */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 0.75rem;
+  --spacing-lg: 1rem;
+  --spacing-xl: 1.5rem;
   
   /* Handles et interactions tactiles */
-  --handle-size: clamp(8px, 1.5vw, 12px);
-  --touch-target: clamp(44px, 8vw, 60px);
-  --border-radius: clamp(4px, 0.5vw, 8px);
+  --handle-size: 8px;
+  --touch-target: 44px;
+  --border-radius: 6px;
   
   /* Viewport units modernes */
   --vh: 1vh;
@@ -57,56 +57,28 @@
   }
 }
 
-/* Container queries pour adaptation fine */
-@container (max-width: 768px) {
-  :root {
-    --px-per-minute: clamp(0.6px, 0.12vw, 0.9px);
-    --cell-height: clamp(40px, 6vh, 60px);
-    --text-base: clamp(0.8rem, 1.8vw, 0.9rem);
-    --spacing-md: clamp(0.5rem, 1vw, 0.75rem);
-  }
-}
-
-@container (max-width: 480px) {
-  :root {
-    --px-per-minute: clamp(0.5px, 0.1vw, 0.7px);
-    --cell-height: clamp(36px, 5vh, 48px);
-    --sidebar-width: clamp(180px, 20vw, 250px);
-    --text-base: clamp(0.75rem, 1.6vw, 0.85rem);
-  }
-}
-
-/* Media queries pour différents appareils */
-@media (max-width: 1024px) {
-  :root {
-    --cell-height: clamp(44px, 7vh, 64px);
-    --sidebar-width: clamp(180px, 22vw, 280px);
-  }
-}
-
+/* Media queries simplifiées */
 @media (max-width: 768px) {
   :root {
-    --cell-height: clamp(40px, 6vh, 56px);
-    --sidebar-width: clamp(160px, 20vw, 240px);
-    --header-height: clamp(56px, 8vh, 72px);
+    --cell-height: 56px;
+    --cell-min-width: 120px;
+    --header-height: 56px;
   }
 }
 
 @media (max-width: 480px) {
   :root {
-    --cell-height: clamp(36px, 5vh, 48px);
-    --sidebar-width: 100vw; /* Sidebar pleine largeur sur mobile */
-    --header-height: clamp(52px, 7vh, 64px);
-    --cell-min-width: clamp(100px, 12vw, 160px);
+    --cell-height: 48px;
+    --cell-min-width: 100px;
+    --header-height: 48px;
   }
 }
 
 /* Adaptations pour les interactions tactiles */
 @media (hover: none) and (pointer: coarse) {
   :root {
-    --handle-size: clamp(12px, 2vw, 16px);
-    --touch-target: clamp(48px, 10vw, 64px);
-    --spacing-md: clamp(1rem, 2vw, 1.25rem);
+    --handle-size: 12px;
+    --touch-target: 48px;
   }
 }
 
@@ -152,18 +124,16 @@
   background-color: rgba(59, 130, 246, 0.1) !important;
 }
 
-/* Handles d'étirement améliorés et responsives */
+/* Handles d'étirement */
 .resize-handle {
   position: absolute;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 240, 240, 0.95));
   border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: var(--border-radius);
+  border-radius: 4px;
   opacity: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 20;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  min-width: var(--touch-target);
-  min-height: var(--touch-target);
 }
 
 .resize-handle:hover {
@@ -174,10 +144,10 @@
 }
 
 .resize-handle-vertical {
-  width: calc(100% - var(--handle-size));
-  height: var(--handle-size);
+  width: calc(100% - 8px);
+  height: 8px;
   cursor: ns-resize;
-  left: calc(var(--handle-size) / 2);
+  left: 4px;
 }
 
 .resize-handle-vertical::before {
@@ -186,7 +156,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: clamp(16px, 3vw, 24px);
+  width: 20px;
   height: 2px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 1px;
@@ -194,10 +164,10 @@
 }
 
 .resize-handle-horizontal {
-  width: var(--handle-size);
-  height: calc(100% - var(--handle-size));
+  width: 8px;
+  height: calc(100% - 8px);
   cursor: ew-resize;
-  top: calc(var(--handle-size) / 2);
+  top: 4px;
 }
 
 .resize-handle-horizontal::before {
@@ -207,7 +177,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   width: 2px;
-  height: clamp(16px, 3vw, 24px);
+  height: 20px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 1px;
   box-shadow: 2px 0 0 rgba(0, 0, 0, 0.3);
@@ -286,45 +256,25 @@
 }
 
 @layer components {
-  /* Styles pour la nouvelle grille de planning responsive */
+  /* Styles pour la grille de planning */
   .planning-grid-modern {
     @apply grid min-h-full;
-    grid-template-columns: var(--cell-min-width) repeat(7, minmax(var(--cell-min-width), 1fr));
-    container-type: inline-size;
-    padding-top: var(--safe-area-top);
-    padding-bottom: var(--safe-area-bottom);
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
+    grid-template-columns: 120px repeat(7, minmax(140px, 1fr));
   }
   
   .planning-time-cell {
-    @apply border-b border-gray-200 flex items-center justify-center font-medium;
-    height: var(--cell-height);
-    font-size: var(--text-sm);
-    color: rgb(75 85 99);
-    padding: var(--spacing-xs);
+    @apply h-16 border-b border-gray-200 flex items-center justify-center text-sm text-gray-600 font-medium;
+    padding: 0.5rem;
   }
   
   .planning-day-cell {
-    @apply border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer group relative;
-    height: var(--cell-height);
-    min-height: var(--cell-height);
-    touch-action: manipulation;
+    @apply h-16 border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer group relative;
   }
   
   .planning-slot-modern {
-    @apply absolute shadow-sm border cursor-pointer transition-all hover:shadow-md z-10;
-    left: var(--spacing-xs);
-    right: var(--spacing-xs);
-    border-radius: var(--border-radius);
-    font-size: var(--text-sm);
-    padding: var(--spacing-xs);
-    min-height: var(--touch-target);
-    transform: translateZ(0); /* Force GPU acceleration */
-  }
-  
-  .planning-slot-modern:hover {
-    transform: translateZ(0) scale(1.02);
+    @apply absolute left-1 right-1 rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-md hover:scale-105 z-10;
+    font-size: 0.875rem;
+    padding: 0.25rem;
   }
   
   /* Styles pour les catégories */
@@ -337,52 +287,26 @@
   .category-m { @apply bg-orange-100 border-l-orange-500 text-orange-800; }
   .category-s { @apply bg-amber-100 border-l-amber-500 text-amber-800; }
   
-  /* Boutons responsives */
+  /* Boutons */
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--border-radius);
-    font-size: var(--text-base);
-    min-height: var(--touch-target);
-    min-width: var(--touch-target);
-    touch-action: manipulation;
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--border-radius);
-    font-size: var(--text-base);
-    min-height: var(--touch-target);
-    min-width: var(--touch-target);
-    touch-action: manipulation;
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
   }
   
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--border-radius);
-    font-size: var(--text-base);
-    min-height: var(--touch-target);
-    min-width: var(--touch-target);
-    touch-action: manipulation;
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
   }
   
-  /* Formulaires responsives */
+  /* Formulaires */
   .form-input {
-    @apply block w-full border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500;
-    border-radius: var(--border-radius);
-    font-size: var(--text-base);
-    padding: var(--spacing-sm);
-    min-height: var(--touch-target);
+    @apply block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm;
   }
   
   .form-select {
-    @apply block w-full border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500;
-    border-radius: var(--border-radius);
-    font-size: var(--text-base);
-    padding: var(--spacing-sm);
-    min-height: var(--touch-target);
+    @apply block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm;
   }
   
   /* Indicateurs de sauvegarde responsives */
