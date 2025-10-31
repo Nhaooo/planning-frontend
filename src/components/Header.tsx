@@ -1,5 +1,5 @@
-import { FC } from 'react'
-import { Calendar, Undo, Redo, Download, Copy, Users, Grid3X3 } from 'lucide-react'
+import { FC, useState } from 'react'
+import { Calendar, Undo, Redo, Download, Copy, Users, Grid3X3, Menu, X } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { useAuthStore } from '../store/authStore'
 import EmployeeSelector from './EmployeeSelector'
@@ -13,6 +13,8 @@ interface HeaderProps {
 }
 
 const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
   const { 
     selectedEmployeeId,
     selectedWeekKind,
@@ -26,19 +28,18 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
   const { isAdmin } = useAuthStore()
 
   const handleDuplicateFromType = () => {
-    // TODO: Implémenter la duplication depuis la semaine type
     console.log('Dupliquer depuis type')
   }
 
   const handleExport = () => {
-    // TODO: Implémenter l'export
     console.log('Export')
   }
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3 md:py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+        {/* Header principal */}
+        <div className="flex items-center justify-between">
           {/* Logo et titre */}
           <div className="flex items-center space-x-2 md:space-x-3">
             <Calendar className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-blue-600" />
@@ -53,102 +54,212 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
             </div>
           </div>
 
-          {/* Navigation et sélecteurs */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 md:gap-6 w-full sm:w-auto">
+          {/* Menu burger mobile */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="sm:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </button>
+
+          {/* Navigation desktop */}
+          <div className="hidden sm:flex sm:items-center sm:gap-3 md:gap-6">
             {/* Navigation des vues (Admin seulement) */}
             {isAdmin() && (
-              <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
+              <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => onViewChange('planning')}
-                  className={`flex items-center justify-center space-x-1 md:space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors flex-1 sm:flex-none ${
+                  className={`flex items-center space-x-1 md:space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
                     currentView === 'planning'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   <Grid3X3 className="h-4 w-4" />
-                  <span className="sm:hidden md:inline">Planning</span>
+                  <span>Planning</span>
                 </button>
                 <button
                   onClick={() => onViewChange('employees')}
-                  className={`flex items-center justify-center space-x-1 md:space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors flex-1 sm:flex-none ${
+                  className={`flex items-center space-x-1 md:space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
                     currentView === 'employees'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   <Users className="h-4 w-4" />
-                  <span className="sm:hidden md:inline">Employés</span>
+                  <span>Employés</span>
                 </button>
               </div>
             )}
 
             {/* Sélecteurs (seulement en vue planning) */}
             {currentView === 'planning' && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-4">
                 <EmployeeSelector />
                 <WeekSelector />
               </div>
             )}
-          </div>
 
-          {/* Actions et indicateurs */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            {/* Undo/Redo (seulement en vue planning) */}
-            {currentView === 'planning' && (
-              <div className="flex items-center space-x-1">
+            {/* Actions et indicateurs */}
+            <div className="flex items-center gap-3">
+              {/* Undo/Redo (seulement en vue planning) */}
+              {currentView === 'planning' && (
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={undo}
+                    disabled={undoStack.length === 0}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Annuler (Ctrl+Z)"
+                  >
+                    <Undo className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={redo}
+                    disabled={redoStack.length === 0}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Rétablir (Ctrl+Y)"
+                  >
+                    <Redo className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Actions planning */}
+              {currentView === 'planning' && selectedEmployeeId && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDuplicateFromType}
+                    className="btn-secondary text-sm"
+                    title="Dupliquer depuis la semaine type"
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Dupliquer
+                  </button>
+                  
+                  <button
+                    onClick={handleExport}
+                    className="btn-secondary text-sm"
+                    title="Exporter le planning"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Exporter
+                  </button>
+                </div>
+              )}
+
+              {/* Indicateur de sauvegarde et utilisateur */}
+              <div className="flex items-center gap-3">
+                {currentView === 'planning' && <SaveIndicator />}
+                <UserInfo />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Menu mobile (collapsible) */}
+        {isMobileMenuOpen && (
+          <div className="sm:hidden mt-3 border-t border-gray-200 pt-3 space-y-3">
+            {/* Navigation des vues (Admin seulement) */}
+            {isAdmin() && (
+              <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={undo}
-                  disabled={undoStack.length === 0}
-                  className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Annuler (Ctrl+Z)"
+                  onClick={() => {
+                    onViewChange('planning')
+                    setIsMobileMenuOpen(false)
+                  }}
+                  className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
+                    currentView === 'planning'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
                 >
-                  <Undo className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Grid3X3 className="h-4 w-4" />
+                  <span>Planning</span>
                 </button>
                 <button
-                  onClick={redo}
-                  disabled={redoStack.length === 0}
-                  className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Rétablir (Ctrl+Y)"
+                  onClick={() => {
+                    onViewChange('employees')
+                    setIsMobileMenuOpen(false)
+                  }}
+                  className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
+                    currentView === 'employees'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
                 >
-                  <Redo className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Users className="h-4 w-4" />
+                  <span>Employés</span>
                 </button>
               </div>
             )}
 
+            {/* Sélecteurs (seulement en vue planning) */}
+            {currentView === 'planning' && (
+              <div className="space-y-3">
+                <EmployeeSelector />
+                <WeekSelector />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between">
+              {/* Undo/Redo */}
+              {currentView === 'planning' && (
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={undo}
+                    disabled={undoStack.length === 0}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Annuler"
+                  >
+                    <Undo className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={redo}
+                    disabled={redoStack.length === 0}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Rétablir"
+                  >
+                    <Redo className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Utilisateur et sauvegarde */}
+              <div className="flex items-center gap-3">
+                {currentView === 'planning' && <SaveIndicator />}
+                <UserInfo />
+              </div>
+            </div>
+
             {/* Actions planning */}
             {currentView === 'planning' && selectedEmployeeId && (
-              <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto">
+              <div className="flex gap-2">
                 <button
                   onClick={handleDuplicateFromType}
-                  className="btn-secondary text-xs sm:text-sm flex-1 sm:flex-none"
+                  className="btn-secondary text-sm flex-1"
                   title="Dupliquer depuis la semaine type"
                 >
-                  <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Dupliquer</span>
+                  <Copy className="h-4 w-4 mr-1" />
+                  Dupliquer
                 </button>
                 
                 <button
                   onClick={handleExport}
-                  className="btn-secondary text-xs sm:text-sm flex-1 sm:flex-none"
+                  className="btn-secondary text-sm flex-1"
                   title="Exporter le planning"
                 >
-                  <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Exporter</span>
+                  <Download className="h-4 w-4 mr-1" />
+                  Exporter
                 </button>
               </div>
             )}
-
-            {/* Indicateur de sauvegarde et utilisateur */}
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
-              {/* Indicateur de sauvegarde (seulement en vue planning) */}
-              {currentView === 'planning' && <SaveIndicator />}
-
-              {/* Informations utilisateur */}
-              <UserInfo />
-            </div>
           </div>
-        </div>
+        )}
 
         {/* Informations contextuelles */}
         {selectedEmployeeId && (

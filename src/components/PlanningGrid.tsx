@@ -374,6 +374,10 @@ const PlanningGrid: React.FC = () => {
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
     
+    // Bloquer le scroll de la page pendant l'étirement
+    document.body.style.overflow = 'hidden'
+    document.body.style.touchAction = 'none'
+    
     console.log('🎯 Début étirement PointerEvent:', { slot, kind })
     
     setResizingSlot(slot)
@@ -476,6 +480,10 @@ const PlanningGrid: React.FC = () => {
     setTempStartTime(0)
     setTempEndTime(0)
     setHorizontalPreviewDays(0)
+    
+    // Restaurer le scroll de la page
+    document.body.style.overflow = ''
+    document.body.style.touchAction = ''
   }
 
      const handleSlotClick = (slot: SimpleSlot) => {
