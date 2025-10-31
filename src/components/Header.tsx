@@ -37,7 +37,7 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
           </div>
 
           {/* Desktop: Navigation complète */}
-          <div className="hidden lg:flex items-center space-x-4">
+          <div className="hidden xl:flex items-center space-x-4">
             {/* Navigation des vues */}
             {isAdmin() && (
               <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
@@ -76,7 +76,7 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
           </div>
 
           {/* Desktop: Actions */}
-          <div className="hidden lg:flex items-center space-x-2">
+          <div className="hidden xl:flex items-center space-x-2">
             {currentView === 'planning' && (
               <>
                 <button
@@ -104,7 +104,7 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
           {/* Mobile: Menu burger */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden p-2 text-gray-600 hover:text-gray-900"
+            className="xl:hidden p-2 text-gray-600 hover:text-gray-900"
           >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -112,7 +112,7 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
 
         {/* Menu mobile */}
         {isMenuOpen && (
-          <div className="lg:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
+          <div className="xl:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
             <div className="space-y-4">
               {/* Navigation des vues */}
               {isAdmin() && (
