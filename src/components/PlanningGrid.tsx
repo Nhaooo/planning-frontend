@@ -4,7 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { simplePlanningApi, SimpleSlot, SimpleSlotUpdate } from '../services/simplePlanningApi'
 import SlotModal from './SlotModal'
-import { getCategoryColors, getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
+import { getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i) // 7h à 20h
@@ -629,58 +629,92 @@ const PlanningGrid: React.FC = () => {
     <div className="space-y-4">
 
       {/* Navigation semaine */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow">
-        <button 
-          onClick={goToPreviousWeek}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded"
-        >
-          ← Semaine précédente
-        </button>
-        
-        <div className="text-center">
-          <h2 className="text-lg font-semibold">
-            {selectedWeekKind === 'type' && 'Semaine type'}
-            {selectedWeekKind === 'current' && `Semaine actuelle - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
-            {selectedWeekKind === 'next' && `Semaine suivante - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
-            {selectedWeekKind === 'vacation' && `Vacances ${selectedVacationPeriod} - ${new Date(displayWeekStart).toLocaleDateString('fr-FR')}`}
-          </h2>
+      <div className="bg-white p-3 sm:p-4 rounded-lg shadow">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-0">
+            <button 
+              onClick={goToPreviousWeek}
+              className="px-3 py-2 sm:px-4 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base"
+            >
+              <span className="hidden sm:inline">← Semaine précédente</span>
+              <span className="sm:hidden">← Préc.</span>
+            </button>
+            
+            <button 
+              onClick={goToNextWeek}
+              className="px-3 py-2 sm:px-4 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base sm:hidden"
+            >
+              Suiv. →
+            </button>
+          </div>
+          
+          <div className="text-center flex-1 sm:flex-none">
+            <h2 className="text-base sm:text-lg font-semibold">
+              {selectedWeekKind === 'type' && 'Semaine type'}
+              {selectedWeekKind === 'current' && (
+                <>
+                  <span className="hidden sm:inline">Semaine actuelle - {new Date(displayWeekStart).toLocaleDateString('fr-FR')}</span>
+                  <span className="sm:hidden">Actuelle</span>
+                </>
+              )}
+              {selectedWeekKind === 'next' && (
+                <>
+                  <span className="hidden sm:inline">Semaine suivante - {new Date(displayWeekStart).toLocaleDateString('fr-FR')}</span>
+                  <span className="sm:hidden">Suivante</span>
+                </>
+              )}
+              {selectedWeekKind === 'vacation' && (
+                <>
+                  <span className="hidden sm:inline">Vacances {selectedVacationPeriod} - {new Date(displayWeekStart).toLocaleDateString('fr-FR')}</span>
+                  <span className="sm:hidden">Vacances {selectedVacationPeriod}</span>
+                </>
+              )}
+            </h2>
+            <button 
+              onClick={goToCurrentWeek}
+              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 mt-1"
+            >
+              <span className="hidden sm:inline">Aller à cette semaine</span>
+              <span className="sm:hidden">Cette semaine</span>
+            </button>
+          </div>
+          
           <button 
-            onClick={goToCurrentWeek}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            onClick={goToNextWeek}
+            className="px-3 py-2 sm:px-4 bg-gray-100 hover:bg-gray-200 rounded text-sm sm:text-base hidden sm:block"
           >
-            Aller à cette semaine
+            Semaine suivante →
           </button>
         </div>
-        
-        <button 
-          onClick={goToNextWeek}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded"
-        >
-          Semaine suivante →
-        </button>
       </div>
 
       {/* Grille de planning */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="grid grid-cols-8 gap-0">
-          {/* En-tête avec les jours */}
-          <div className="bg-gray-50 p-3 font-medium text-center border-b">Heures</div>
-          {DAYS.map((day, index) => (
-            <div key={day} className="bg-gray-50 p-3 font-medium text-center border-b">
-              {day}
-              <div className="text-xs text-gray-500 mt-1">
-                {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-              </div>
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-8 gap-0 min-w-[640px]">
+            {/* En-tête avec les jours */}
+            <div className="bg-gray-50 p-2 sm:p-3 font-medium text-center border-b text-xs sm:text-sm">
+              <span className="hidden sm:inline">Heures</span>
+              <span className="sm:hidden">H</span>
             </div>
-          ))}
+            {DAYS.map((day, index) => (
+              <div key={day} className="bg-gray-50 p-2 sm:p-3 font-medium text-center border-b text-xs sm:text-sm">
+                <span className="hidden sm:inline">{day}</span>
+                <span className="sm:hidden">{day.slice(0, 3)}</span>
+                <div className="text-xs text-gray-500 mt-1">
+                  {new Date(addDaysToDate(displayWeekStart, index)).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                </div>
+              </div>
+            ))}
 
           {/* Lignes d'heures */}
           {HOURS.map(hour => (
-            <React.Fragment key={hour}>
-              {/* Colonne des heures */}
-              <div className="bg-gray-50 p-3 text-center font-medium border-b border-r">
-                {hour}:00
-              </div>
+              <React.Fragment key={hour}>
+                {/* Colonne des heures */}
+                <div className="bg-gray-50 p-2 sm:p-3 text-center font-medium border-b border-r text-xs sm:text-sm">
+                  <span className="hidden sm:inline">{hour}:00</span>
+                  <span className="sm:hidden">{hour}h</span>
+                </div>
               
               {/* Cellules pour chaque jour */}
               {DAYS.map((_, dayIndex) => {
@@ -705,7 +739,7 @@ const PlanningGrid: React.FC = () => {
                   <div 
                     key={`${hour}-${dayIndex}`}
                     className={`
-                      relative h-16 border-b border-r cursor-pointer transition-colors
+                      relative h-12 sm:h-16 border-b border-r cursor-pointer transition-colors
                       ${slot ? '' : 'hover:bg-gray-50'}
                     `}
                     style={slot ? getCellBackgroundStyle(slot.category) : {}}
@@ -719,13 +753,13 @@ const PlanningGrid: React.FC = () => {
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
+                        className={`absolute inset-0.5 sm:inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
                           isBeingResized ? (isHorizontalResize ? 'slot-resizing-horizontal' : 'slot-resizing') : ''
                         }`}
                         style={{
                           ...getSlotStyle(slot.category),
-                          height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
-                          minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
+                          height: `${slotHeight * (window.innerWidth < 640 ? 48 : 64) - (window.innerWidth < 640 ? 4 : 8)}px`, // Hauteur adaptative
+                          minHeight: slotHeight < 1 ? `${slotHeight * (window.innerWidth < 640 ? 48 : 64) - (window.innerWidth < 640 ? 4 : 8)}px` : (window.innerWidth < 640 ? '44px' : '56px')
                         }}
                         draggable={!resizingSlot}
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
@@ -740,22 +774,26 @@ const PlanningGrid: React.FC = () => {
                           }
                         }}
                       >
-                        <div className="font-medium truncate">{slot.title}</div>
-                        <div className={`opacity-80 ${isBeingResized ? (isHorizontalResize ? 'font-bold text-green-200' : 'font-bold text-blue-200') : ''}`}>
-                          {minutesToTime(displayStartTime)} - {minutesToTime(displayEndTime)}
+                        <div className="font-medium truncate text-xs sm:text-sm">{slot.title}</div>
+                        <div className={`text-xs opacity-75 ${isBeingResized ? (isHorizontalResize ? 'font-bold text-green-200' : 'font-bold text-blue-200') : ''}`}>
+                          <span className="hidden sm:inline">{minutesToTime(displayStartTime)} - {minutesToTime(displayEndTime)}</span>
+                          <span className="sm:hidden">{Math.floor(displayStartTime / 60)}h-{Math.floor(displayEndTime / 60)}h</span>
                           {isBeingResized && !isHorizontalResize && (
-                            <span className="ml-1 text-blue-100">
+                            <span className="ml-1 text-blue-100 hidden sm:inline">
                               ({Math.round((displayEndTime - displayStartTime) / 60 * 10) / 10}h)
                             </span>
                           )}
                           {isHorizontalResize && (
                             <span className="ml-1 text-green-100 animate-pulse">
-                              → Plusieurs jours
+                              <span className="hidden sm:inline">→ Plusieurs jours</span>
+                              <span className="sm:hidden">→ Multi</span>
                             </span>
                           )}
                         </div>
-                        <div className="text-xs opacity-70 mt-1">
-                          {getCategoryColors(slot.category).name}
+                        <div className="text-xs opacity-70 mt-1 hidden sm:block">
+                          {slot.comment && (
+                            <div className="truncate">{slot.comment}</div>
+                          )}
                         </div>
                         
                         {/* Bouton de suppression */}
@@ -804,12 +842,14 @@ const PlanningGrid: React.FC = () => {
                             height: `${getSlotHeight(resizingSlot) * 64 - 8}px`,
                           }}
                         >
-                          <div className="font-medium truncate text-green-100">{resizingSlot.title}</div>
+                          <div className="font-medium truncate text-green-100 text-xs sm:text-sm">{resizingSlot.title}</div>
                           <div className="text-xs opacity-75 text-green-200">
-                            {minutesToTime(resizingSlot.start_time)} - {minutesToTime(resizingSlot.end_time)}
+                            <span className="hidden sm:inline">{minutesToTime(resizingSlot.start_time)} - {minutesToTime(resizingSlot.end_time)}</span>
+                            <span className="sm:hidden">{Math.floor(resizingSlot.start_time / 60)}h-{Math.floor(resizingSlot.end_time / 60)}h</span>
                           </div>
                           <div className="text-xs opacity-75 text-green-200 animate-pulse">
-                            Preview
+                            <span className="hidden sm:inline">Preview</span>
+                            <span className="sm:hidden">Prev</span>
                           </div>
                         </div>
                       ) : !slot ? (
@@ -822,6 +862,7 @@ const PlanningGrid: React.FC = () => {
               })}
             </React.Fragment>
           ))}
+          </div>
         </div>
       </div>
 
