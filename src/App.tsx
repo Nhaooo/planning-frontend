@@ -82,17 +82,17 @@ function App() {
   // Afficher le modal de connexion si pas authentifié
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="text-center max-w-md w-full">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
             Planning Hebdomadaire
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
             Connectez-vous pour accéder à l'application
           </p>
           <button
             onClick={() => setShowLoginModal(true)}
-            className="btn-primary text-lg px-8 py-3"
+            className="btn-primary text-sm sm:text-lg px-6 sm:px-8 py-2 sm:py-3 w-full sm:w-auto"
           >
             Se connecter
           </button>
@@ -107,7 +107,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {showWakeupBanner && <ServerWakeupBanner />}
       
       <Header 
@@ -115,7 +115,7 @@ function App() {
         onViewChange={setCurrentView}
       />
       
-      <main className="container mx-auto px-4 py-6">
+      <main className="flex-1 container mx-auto px-2 sm:px-4 py-2 sm:py-4 lg:py-6 max-w-full overflow-hidden">
         {/* Vue Gestion des employés (Admin seulement) */}
         {currentView === 'employees' && (
           <ProtectedRoute requireAdmin={true}>
@@ -127,20 +127,22 @@ function App() {
         {currentView === 'planning' && (
           <ProtectedRoute requireAuth={true}>
             {selectedEmployeeId || (user?.type === 'employee' && user.slug) ? (
-              <div className="flex flex-col xl:grid xl:grid-cols-4 gap-4 md:gap-6">
-                <div className="xl:col-span-3 order-2 xl:order-1">
-                  <PlanningGrid />
-                </div>
-                <div className="xl:col-span-1 order-1 xl:order-2">
+              <div className="flex flex-col lg:grid lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 h-full">
+                {/* Sidebar en haut sur mobile, à droite sur desktop */}
+                <div className="lg:col-span-1 order-1 lg:order-2">
                   <Sidebar />
+                </div>
+                {/* Planning en bas sur mobile, à gauche sur desktop */}
+                <div className="lg:col-span-3 order-2 lg:order-1 min-h-0 flex-1">
+                  <PlanningGrid />
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12">
-                <h2 className="text-xl font-semibold text-gray-700 mb-4">
+              <div className="text-center py-8 sm:py-12 px-4">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-700 mb-4">
                   {isAdmin() ? 'Sélectionnez un employé pour commencer' : 'Chargement de votre planning...'}
                 </h2>
-                <p className="text-gray-500">
+                <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto">
                   {isAdmin() 
                     ? 'Utilisez le sélecteur d\'employé dans l\'en-tête pour afficher un planning.'
                     : 'Votre planning personnel se charge...'
