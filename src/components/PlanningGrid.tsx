@@ -720,9 +720,10 @@ const PlanningGrid: React.FC = () => {
                   const isBeingResized = slot && resizingSlot?.id === slot.id
                   const isHorizontalResize = isBeingResized && draggingRef.current?.kind === "resize-horizontal"
                   
-                  // Preview horizontal : afficher les futurs blocs
+                  // Preview horizontal : afficher les futurs blocs SEULEMENT pendant l'étirement
                   const isHorizontalPreview = resizingSlot && !slot && horizontalPreviewDays > 0 && 
                     draggingRef.current?.kind === "resize-horizontal" &&
+                    draggingRef.current !== null && // S'assurer qu'on est en train d'étirer
                     dayIndex > getDayIndex(resizingSlot.date) && 
                     dayIndex <= getDayIndex(resizingSlot.date) + horizontalPreviewDays &&
                     hour === resizingSlot.start_time // Seulement au début du slot
@@ -760,6 +761,19 @@ const PlanningGrid: React.FC = () => {
                         draggable={!resizingSlot}
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
                         onDragEnd={handleSlotDragEnd}
+                        onTouchStart={(e) => {
+                          // Support tactile pour le drag & drop
+                          e.preventDefault()
+                          handleSlotDragStart(e as any, slot)
+                        }}
+                        onTouchMove={(e) => {
+                          e.preventDefault()
+                          // Gérer le déplacement tactile
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault()
+                          handleSlotDragEnd(e as any)
+                        }}
                         onPointerMove={onPointerMove}
                         onPointerUp={(e) => onPointerUp(e)}
                         onClick={(e) => {
