@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Palette } from 'lucide-react'
 import Header from './components/Header'
 import PlanningGrid from './components/PlanningGrid'
 import Sidebar from './components/Sidebar'
@@ -19,6 +20,7 @@ function App() {
   const [showWakeupBanner, setShowWakeupBanner] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [currentView, setCurrentView] = useState<'planning' | 'employees'>('planning')
+  const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false)
   
   const { selectedEmployeeId, setEmployees } = usePlanningStore()
   const { isAuthenticated, user, isAdmin } = useAuthStore()
@@ -127,13 +129,86 @@ function App() {
         {currentView === 'planning' && (
           <ProtectedRoute requireAuth={true}>
             {selectedEmployeeId || (user?.type === 'employee' && user.slug) ? (
-              <div className="flex flex-col xl:grid xl:grid-cols-4 gap-4 md:gap-6">
-                <div className="xl:col-span-3 order-2 xl:order-1">
+              <div className="relative">
+                {/* Layout Desktop */}
+                <div className="hidden xl:grid xl:grid-cols-4 gap-6">
+                  <div className="xl:col-span-3">
+                    <PlanningGrid />
+                  </div>
+                  <div className="xl:col-span-1">
+                    <Sidebar />
+                  </div>
+                </div>
+
+                {/* Layout Mobile - Planning pleine largeur */}
+                <div className="xl:hidden">
                   <PlanningGrid />
                 </div>
-                <div className="xl:col-span-1 order-1 xl:order-2">
-                  <Sidebar />
-                </div>
+
+                {/* Bouton flottant pour palette mobile */}
+                <button
+                  onClick={() => setIsMobilePaletteOpen(true)}
+                  className="xl:hidden fixed bottom-20 right-6 w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-all duration-300 hover:scale-110 animate-pulse-float"
+                  aria-label="Ouvrir la palette de blocs"
+                  style={{
+                    background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                    boxShadow: '0 10px 25px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                  }}
+                >
+                  <Palette className="h-7 w-7" />
+                  
+                  {/* Badge indicateur */}
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">!</span>
+                  </div>
+                </button>
+
+                {/* Overlay palette mobile */}
+                {isMobilePaletteOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <div 
+                      className="xl:hidden fixed inset-0 bg-black bg-opacity-50 z-50"
+                      onClick={() => setIsMobilePaletteOpen(false)}
+                    />
+                    
+                    {/* Palette flottante */}
+                    <div className="xl:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50 max-h-[75vh] overflow-hidden animate-slide-up mobile-palette">
+                      {/* Poignée de glissement */}
+                      <div className="flex justify-center pt-3 pb-2">
+                        <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+                      </div>
+                      
+                      <div className="px-6 pb-6">
+                        {/* Header de la palette */}
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <Palette className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900">Palette de blocs</h3>
+                              <p className="text-sm text-gray-500">Glissez-déposez dans le planning</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setIsMobilePaletteOpen(false)}
+                            className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                          >
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        
+                        {/* Contenu de la sidebar dans la palette */}
+                        <div className="overflow-y-auto max-h-[calc(75vh-140px)] -mx-2 px-2">
+                          <Sidebar />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="text-center py-12">
