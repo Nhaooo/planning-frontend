@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { simplePlanningApi, SimpleSlot, SimpleSlotUpdate } from '../services/simplePlanningApi'
 import SlotModal from './SlotModal'
+import CompactBlockPalette from './CompactBlockPalette'
 import { getCategoryColors, getSlotStyle, getCellBackgroundStyle } from '../utils/categoryColors'
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
@@ -627,6 +628,10 @@ const PlanningGrid: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* Palette de blocs compacte - visible seulement sur mobile/tablette */}
+      <div className="xl:hidden">
+        <CompactBlockPalette />
+      </div>
 
       {/* Navigation semaine */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow">
