@@ -196,6 +196,17 @@
   opacity: 1;
 }
 
+/* Toujours afficher les handles sur les appareils tactiles */
+@media (hover: none) and (pointer: coarse) {
+  .slot-container .resize-handle {
+    opacity: 0.7;
+  }
+  
+  .slot-container .resize-handle:active {
+    opacity: 1;
+  }
+}
+
 /* Animation d'étirement en temps réel */
 .slot-resizing {
   transition: height 0.1s cubic-bezier(0.4, 0, 0.2, 1);
