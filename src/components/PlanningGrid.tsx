@@ -177,11 +177,18 @@ const PlanningGrid: React.FC = () => {
 
   // État pour tracker le type de drag en cours
   const [dragType, setDragType] = useState<'palette' | 'existing' | null>(null)
+  const [placementPreview, setPlacementPreview] = useState<{
+    dayIndex: number
+    startTime: number
+    endTime: number
+    title: string
+    category: string
+  } | null>(null)
   
 
 
   // Gestionnaires drag & drop
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, dayIndex: number, hour: number) => {
     e.preventDefault()
     e.stopPropagation()
     
@@ -195,11 +202,33 @@ const PlanningGrid: React.FC = () => {
     // Ajouter une classe pour le feedback visuel
     const target = e.currentTarget as HTMLElement
     target.classList.add('drag-over')
+    
+    // Afficher le preview de placement
+    try {
+      const draggedData = JSON.parse(e.dataTransfer.getData('application/json'))
+      const startTime = hour * 60
+      const duration = draggedData.isExistingSlot 
+        ? draggedData.end_time - draggedData.start_time 
+        : draggedData.defaultDuration
+      
+      const freeSlot = findFreeSlot(dayIndex, startTime, duration)
+      
+      setPlacementPreview({
+        dayIndex: freeSlot.dayIndex,
+        startTime: freeSlot.startTime,
+        endTime: freeSlot.startTime + duration,
+        title: draggedData.title,
+        category: draggedData.category
+      })
+    } catch (error) {
+      // Ignore les erreurs de parsing pendant le drag
+    }
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
     const target = e.currentTarget as HTMLElement
     target.classList.remove('drag-over')
+    setPlacementPreview(null)
   }
 
   const handleDrop = (e: React.DragEvent, dayIndex: number, hour: number) => {
@@ -211,6 +240,7 @@ const PlanningGrid: React.FC = () => {
     // Nettoyer le feedback visuel
     const target = e.currentTarget as HTMLElement
     target.classList.remove('drag-over')
+    setPlacementPreview(null)
     
     if (!selectedEmployeeId) {
       console.log('❌ Pas d\'employé sélectionné')
@@ -219,7 +249,6 @@ const PlanningGrid: React.FC = () => {
     
     try {
       const draggedData = JSON.parse(e.dataTransfer.getData('application/json'))
-      const date = addDaysToDate(displayWeekStart, dayIndex)
       const startTime = hour * 60
       
       console.log('📦 Données draggées:', draggedData)
@@ -227,14 +256,17 @@ const PlanningGrid: React.FC = () => {
       if (draggedData.isExistingSlot) {
         // Déplacement d'un créneau existant
         const duration = draggedData.end_time - draggedData.start_time
-        const endTime = startTime + duration
         
-        console.log('🎯 Déplacement créneau:', { 
+        // Utiliser le système de collision pour trouver une place libre
+        const freeSlot = findFreeSlot(dayIndex, startTime, duration)
+        const finalDate = addDaysToDate(displayWeekStart, freeSlot.dayIndex)
+        const endTime = freeSlot.startTime + duration
+        
+        console.log('🎯 Déplacement créneau avec collision:', { 
           draggedData, 
-          dayIndex, 
-          hour, 
-          date, 
-          startTime, 
+          originalPosition: { dayIndex, hour, startTime },
+          finalPosition: { dayIndex: freeSlot.dayIndex, startTime: freeSlot.startTime },
+          date: finalDate, 
           endTime,
           selectedEmployeeId,
           employeeIdType: typeof selectedEmployeeId
@@ -242,9 +274,9 @@ const PlanningGrid: React.FC = () => {
         
         const updateData = {
           employee_id: Number(selectedEmployeeId),
-          date: date,
-          day_of_week: dayIndex,
-          start_time: startTime,
+          date: finalDate,
+          day_of_week: freeSlot.dayIndex,
+          start_time: freeSlot.startTime,
           end_time: endTime,
           title: draggedData.title,
           category: draggedData.category,
@@ -260,9 +292,9 @@ const PlanningGrid: React.FC = () => {
         // D'abord créer le nouveau créneau (duplication instantanée)
         createSlotMutation.mutate({
           employee_id: Number(selectedEmployeeId),
-          date: date,
-          day_of_week: dayIndex,
-          start_time: startTime,
+          date: finalDate,
+          day_of_week: freeSlot.dayIndex,
+          start_time: freeSlot.startTime,
           end_time: endTime,
           title: draggedData.title,
           category: draggedData.category,
@@ -287,16 +319,27 @@ const PlanningGrid: React.FC = () => {
         })
       } else {
         // Création d'un nouveau créneau depuis la palette
-        const endTime = startTime + draggedData.defaultDuration
+        const duration = draggedData.defaultDuration
         
-        console.log('🎯 Création créneau:', { draggedData, dayIndex, hour, date, startTime, endTime })
+        // Utiliser le système de collision pour trouver une place libre
+        const freeSlot = findFreeSlot(dayIndex, startTime, duration)
+        const finalDate = addDaysToDate(displayWeekStart, freeSlot.dayIndex)
+        const endTime = freeSlot.startTime + duration
+        
+        console.log('🎯 Création créneau avec collision:', { 
+          draggedData, 
+          originalPosition: { dayIndex, hour, startTime },
+          finalPosition: { dayIndex: freeSlot.dayIndex, startTime: freeSlot.startTime },
+          date: finalDate, 
+          endTime 
+        })
         
         // Créer directement le créneau
         createSlotMutation.mutate({
           employee_id: selectedEmployeeId,
-          date: date,
-          day_of_week: dayIndex,
-          start_time: startTime,
+          date: finalDate,
+          day_of_week: freeSlot.dayIndex,
+          start_time: freeSlot.startTime,
           end_time: endTime,
           title: draggedData.title,
           category: draggedData.category,
@@ -366,6 +409,99 @@ const PlanningGrid: React.FC = () => {
     const diffTime = slotDate.getTime() - startDate.getTime()
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
+  }
+
+  // Fonction pour vérifier si deux créneaux se chevauchent
+  const slotsOverlap = (slot1: { start_time: number; end_time: number; dayIndex: number }, 
+                       slot2: { start_time: number; end_time: number; dayIndex: number }) => {
+    // Même jour et chevauchement temporel
+    return slot1.dayIndex === slot2.dayIndex && 
+           slot1.start_time < slot2.end_time && 
+           slot1.end_time > slot2.start_time
+  }
+
+  // Fonction pour trouver une place libre pour un nouveau créneau
+  const findFreeSlot = (dayIndex: number, startTime: number, duration: number) => {
+    const endTime = startTime + duration
+    const newSlot = { start_time: startTime, end_time: endTime, dayIndex }
+    
+    // Récupérer tous les créneaux existants pour ce jour
+    const existingSlots = weekPlanning?.slots?.filter(slot => {
+      const slotDayIndex = getDayIndex(slot.date)
+      return slotDayIndex === dayIndex
+    }) || []
+
+    // Vérifier s'il y a collision
+    const hasCollision = existingSlots.some(slot => 
+      slotsOverlap(newSlot, { 
+        start_time: slot.start_time, 
+        end_time: slot.end_time, 
+        dayIndex 
+      })
+    )
+
+    if (!hasCollision) {
+      return { dayIndex, startTime }
+    }
+
+    // Chercher une place libre en décalant par pas de 15 minutes
+    for (let hour = 8; hour <= 20; hour++) {
+      for (let quarter = 0; quarter < 4; quarter++) {
+        const testStartTime = hour * 60 + quarter * 15
+        const testEndTime = testStartTime + duration
+        
+        // Ne pas dépasser 20h
+        if (testEndTime > 20 * 60) continue
+        
+        const testSlot = { start_time: testStartTime, end_time: testEndTime, dayIndex }
+        
+        const testHasCollision = existingSlots.some(slot => 
+          slotsOverlap(testSlot, { 
+            start_time: slot.start_time, 
+            end_time: slot.end_time, 
+            dayIndex 
+          })
+        )
+        
+        if (!testHasCollision) {
+          return { dayIndex, startTime: testStartTime }
+        }
+      }
+    }
+
+    // Si aucune place libre trouvée, essayer les jours suivants
+    for (let nextDay = dayIndex + 1; nextDay < 7; nextDay++) {
+      const nextDaySlots = weekPlanning?.slots?.filter(slot => {
+        const slotDayIndex = getDayIndex(slot.date)
+        return slotDayIndex === nextDay
+      }) || []
+
+      for (let hour = 8; hour <= 20; hour++) {
+        for (let quarter = 0; quarter < 4; quarter++) {
+          const testStartTime = hour * 60 + quarter * 15
+          const testEndTime = testStartTime + duration
+          
+          if (testEndTime > 20 * 60) continue
+          
+          const testSlot = { start_time: testStartTime, end_time: testEndTime, dayIndex: nextDay }
+          
+          const testHasCollision = nextDaySlots.some(slot => 
+            slotsOverlap(testSlot, { 
+              start_time: slot.start_time, 
+              end_time: slot.end_time, 
+              dayIndex: nextDay 
+            })
+          )
+          
+          if (!testHasCollision) {
+            return { dayIndex: nextDay, startTime: testStartTime }
+          }
+        }
+      }
+    }
+
+    // En dernier recours, retourner la position originale
+    return { dayIndex, startTime }
   }
 
   // Au clic sur la poignée
@@ -755,7 +891,7 @@ const PlanningGrid: React.FC = () => {
                       if (resizingSlot) return // Empêcher clic pendant étirement
                       slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)
                     }}
-                    onDragOver={handleDragOver}
+                    onDragOver={(e) => handleDragOver(e, dayIndex, hour)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, dayIndex, hour)}
                   >
@@ -858,6 +994,32 @@ const PlanningGrid: React.FC = () => {
                           <div className="text-xs opacity-75 text-green-200 animate-pulse">
                             <span className="hidden sm:inline">Preview</span>
                             <span className="sm:hidden">Prev</span>
+                          </div>
+                        </div>
+                      ) : placementPreview && 
+                           placementPreview.dayIndex === dayIndex && 
+                           hour >= placementPreview.startTime / 60 && 
+                           hour < placementPreview.endTime / 60 &&
+                           hour === Math.floor(placementPreview.startTime / 60) ? (
+                        // Preview de placement avec collision
+                        <div 
+                          className="absolute inset-1 rounded p-1 text-xs overflow-hidden z-20 pointer-events-none"
+                          style={{
+                            ...getSlotStyle(placementPreview.category),
+                            opacity: 0.7,
+                            border: '2px dashed rgba(59, 130, 246, 0.8)',
+                            background: `${getSlotStyle(placementPreview.category).backgroundColor}90`,
+                            height: `${((placementPreview.endTime - placementPreview.startTime) / 60) * 64 - 8}px`,
+                          }}
+                        >
+                          <div className="font-medium truncate text-blue-100 text-xs sm:text-sm">{placementPreview.title}</div>
+                          <div className="text-xs opacity-75 text-blue-200">
+                            <span className="hidden sm:inline">{minutesToTime(placementPreview.startTime)} - {minutesToTime(placementPreview.endTime)}</span>
+                            <span className="sm:hidden">{Math.floor(placementPreview.startTime / 60)}h-{Math.floor(placementPreview.endTime / 60)}h</span>
+                          </div>
+                          <div className="text-xs opacity-75 text-blue-200 animate-pulse">
+                            <span className="hidden sm:inline">Placement automatique</span>
+                            <span className="sm:hidden">Auto</span>
                           </div>
                         </div>
                       ) : !slot ? (
