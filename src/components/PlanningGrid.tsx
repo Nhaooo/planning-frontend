@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
@@ -337,48 +337,90 @@ const PlanningGrid: React.FC = () => {
     target.classList.remove('dragging')
   }
 
-  // NOUVEAU CODE D'ÉTIREMENT ULTRA SIMPLE
-  const handleStretch = (slot: SimpleSlot, direction: 'vertical' | 'horizontal') => {
-    console.log('🎯 Étirement simple:', { slot, direction })
+  // ÉTIREMENT AVEC POINTEREVENTS - ADAPTÉ À NOTRE STRUCTURE
+  const [resizingSlot, setResizingSlot] = useState<SimpleSlot | null>(null)
+  const [tempStartTime, setTempStartTime] = useState<number>(0)
+  const [tempEndTime, setTempEndTime] = useState<number>(0)
+  
+  const draggingRef = useRef<{
+    kind: "resize-start" | "resize-end"
+    startAt: number
+    endAt: number
+    pointerStartY: number
+  } | null>(null)
+
+  // Constantes de configuration
+  const PX_PER_MIN = 1.6
+  const STEP_MIN = 15
+  const MIN_DURATION = 15
+
+  const snap = (m: number) => Math.round(m / STEP_MIN) * STEP_MIN
+  const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
+
+  // Au clic sur la poignée
+  const onPointerDown = (slot: SimpleSlot, kind: "resize-start" | "resize-end") => (e: React.PointerEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
     
-    if (direction === 'vertical') {
-      // Étirement vertical : juste demander la nouvelle durée
-      const currentDurationHours = Math.round((slot.end_time - slot.start_time) / 60)
-      const newHours = prompt(`Durée actuelle: ${currentDurationHours}h\nNouvelle durée (en heures):`, currentDurationHours.toString())
-      
-      if (newHours && !isNaN(Number(newHours)) && Number(newHours) > 0) {
-        const newDuration = Number(newHours) * 60 // Convertir en minutes
-        updateSlotMutation.mutate({
-          slotId: slot.id,
-          slotData: {
-            end_time: slot.start_time + newDuration
-          }
-        })
-      }
-    } else {
-      // Étirement horizontal : demander le nombre de jours
-      const days = prompt('Sur combien de jours étaler ce créneau ?', '2')
-      
-      if (days && !isNaN(Number(days)) && Number(days) > 1) {
-        const numDays = Math.min(7, Number(days))
-        
-        for (let i = 1; i < numDays; i++) {
-          const newDate = new Date(slot.date)
-          newDate.setDate(newDate.getDate() + i)
-          
-          createSlotMutation.mutate({
-            employee_id: Number(selectedEmployeeId),
-            date: newDate.toISOString().split('T')[0],
-            day_of_week: (slot.day_of_week + i) % 7,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-            title: slot.title,
-            category: slot.category,
-            comment: slot.comment || ''
-          })
-        }
-      }
+    console.log('🎯 Début étirement PointerEvent:', { slot, kind })
+    
+    setResizingSlot(slot)
+    setTempStartTime(slot.start_time)
+    setTempEndTime(slot.end_time)
+    
+    draggingRef.current = {
+      kind,
+      startAt: slot.start_time,
+      endAt: slot.end_time,
+      pointerStartY: e.clientY,
     }
+  }
+
+  // Pendant le drag
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!draggingRef.current || !resizingSlot) return
+
+    const { kind, startAt, endAt, pointerStartY } = draggingRef.current
+    const deltaMin = (e.clientY - pointerStartY) / PX_PER_MIN
+    const delta = snap(deltaMin)
+
+    if (kind === "resize-start") {
+      let next = clamp(startAt + delta, 0, endAt - MIN_DURATION)
+      setTempStartTime(next)
+    } else {
+      let next = clamp(endAt + delta, startAt + MIN_DURATION, 24 * 60)
+      setTempEndTime(next)
+    }
+  }
+
+  // À la fin du drag
+  const onPointerUp = () => {
+    if (!draggingRef.current || !resizingSlot) return
+    
+    const finalStartTime = snap(tempStartTime)
+    const finalEndTime = snap(tempEndTime)
+    
+    console.log('✅ Fin étirement, mise à jour:', { 
+      slotId: resizingSlot.id, 
+      start_time: finalStartTime, 
+      end_time: finalEndTime 
+    })
+    
+    // Mise à jour via API
+    updateSlotMutation.mutate({
+      slotId: resizingSlot.id,
+      slotData: {
+        start_time: finalStartTime,
+        end_time: finalEndTime
+      }
+    })
+    
+    // Nettoyage
+    draggingRef.current = null
+    setResizingSlot(null)
+    setTempStartTime(0)
+    setTempEndTime(0)
   }
 
      const handleSlotClick = (slot: SimpleSlot) => {
@@ -610,9 +652,11 @@ const PlanningGrid: React.FC = () => {
                           height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
                           minHeight: slotHeight < 1 ? `${slotHeight * 64 - 8}px` : '56px'
                         }}
-                        draggable
+                        draggable={!resizingSlot}
                         onDragStart={(e) => handleSlotDragStart(e, slot)}
                         onDragEnd={handleSlotDragEnd}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={onPointerUp}
                       >
                         <div className="font-medium truncate">{slot.title}</div>
                         <div className="opacity-80">
@@ -630,24 +674,18 @@ const PlanningGrid: React.FC = () => {
                           <Trash2 size={10} />
                         </button>
                         
-                        {/* Handles d'étirement ULTRA SIMPLES */}
+                        {/* Handles d'étirement avec PointerEvents */}
                         <div 
                           className="resize-handle resize-handle-vertical resize-handle-bottom"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleStretch(slot, 'vertical')
+                          onPointerDown={onPointerDown(slot, "resize-end")}
+                          onPointerMove={onPointerMove}
+                          onPointerUp={onPointerUp}
+                          style={{ 
+                            touchAction: 'none', 
+                            userSelect: 'none',
+                            cursor: 'ns-resize'
                           }}
-                          title="Cliquer pour changer la durée"
-                        ></div>
-                        <div 
-                          className="resize-handle resize-handle-horizontal resize-handle-right"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleStretch(slot, 'horizontal')
-                          }}
-                          title="Cliquer pour étaler sur plusieurs jours"
+                          title="Glisser pour changer la durée"
                         ></div>
                       </div>
                     ) : !slot ? (
