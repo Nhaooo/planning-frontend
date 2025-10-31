@@ -646,7 +646,10 @@ const PlanningGrid: React.FC = () => {
                       ${slot ? '' : 'hover:bg-gray-50'}
                     `}
                     style={slot ? getCellBackgroundStyle(slot.category) : {}}
-                    onClick={() => slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)}
+                    onClick={() => {
+                      if (resizingSlot) return // Empêcher clic pendant étirement
+                      slot ? handleSlotClick(slot) : handleCellClick(dayIndex, hour)
+                    }}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, dayIndex, hour)}
@@ -664,6 +667,13 @@ const PlanningGrid: React.FC = () => {
                         onDragEnd={handleSlotDragEnd}
                         onPointerMove={onPointerMove}
                         onPointerUp={onPointerUp}
+                        onClick={(e) => {
+                          if (resizingSlot) {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            return
+                          }
+                        }}
                       >
                         <div className="font-medium truncate">{slot.title}</div>
                         <div className={`opacity-80 ${isBeingResized ? 'font-bold text-blue-200' : ''}`}>
