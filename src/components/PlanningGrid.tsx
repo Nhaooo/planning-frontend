@@ -341,6 +341,7 @@ const PlanningGrid: React.FC = () => {
   const [resizingSlot, setResizingSlot] = useState<SimpleSlot | null>(null)
   const [tempStartTime, setTempStartTime] = useState<number>(0)
   const [tempEndTime, setTempEndTime] = useState<number>(0)
+  const [horizontalPreviewDays, setHorizontalPreviewDays] = useState<number>(0)
   
   const draggingRef = useRef<{
     kind: "resize-start" | "resize-end" | "resize-horizontal"
@@ -357,6 +358,15 @@ const PlanningGrid: React.FC = () => {
 
   const snap = (m: number) => Math.round(m / STEP_MIN) * STEP_MIN
   const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
+  
+  // Fonction pour obtenir l'index du jour à partir d'une date
+  const getDayIndex = (dateStr: string) => {
+    const slotDate = new Date(dateStr)
+    const startDate = new Date(displayWeekStart)
+    const diffTime = slotDate.getTime() - startDate.getTime()
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
 
   // Au clic sur la poignée
   const onPointerDown = (slot: SimpleSlot, kind: "resize-start" | "resize-end" | "resize-horizontal") => (e: React.PointerEvent) => {
@@ -386,11 +396,11 @@ const PlanningGrid: React.FC = () => {
     const { kind, startAt, endAt, pointerStartY, pointerStartX } = draggingRef.current
 
     if (kind === "resize-horizontal") {
-      // Étirement horizontal : pas de modification des temps, juste feedback visuel
+      // Étirement horizontal : mise à jour du preview
       const deltaX = e.clientX - pointerStartX
-      const deltaDays = Math.round(deltaX / 200) // 200px par jour approximativement
+      const deltaDays = Math.max(0, Math.round(deltaX / 200)) // 200px par jour approximativement
+      setHorizontalPreviewDays(deltaDays)
       console.log('📏 Étirement horizontal:', { deltaX, deltaDays })
-      // Pas de modification des temps pour l'horizontal
     } else {
       // Étirement vertical
       const deltaMin = (e.clientY - pointerStartY) / PX_PER_MIN
@@ -465,6 +475,7 @@ const PlanningGrid: React.FC = () => {
     setResizingSlot(null)
     setTempStartTime(0)
     setTempEndTime(0)
+    setHorizontalPreviewDays(0)
   }
 
      const handleSlotClick = (slot: SimpleSlot) => {
@@ -678,6 +689,13 @@ const PlanningGrid: React.FC = () => {
                 // Utiliser les temps temporaires pendant l'étirement pour feedback visuel
                   const isBeingResized = slot && resizingSlot?.id === slot.id
                   const isHorizontalResize = isBeingResized && draggingRef.current?.kind === "resize-horizontal"
+                  
+                  // Preview horizontal : afficher les futurs blocs
+                  const isHorizontalPreview = resizingSlot && !slot && horizontalPreviewDays > 0 && 
+                    draggingRef.current?.kind === "resize-horizontal" &&
+                    dayIndex > getDayIndex(resizingSlot.date) && 
+                    dayIndex <= getDayIndex(resizingSlot.date) + horizontalPreviewDays &&
+                    hour === resizingSlot.start_time // Seulement au début du slot
                   const displayStartTime = isBeingResized ? tempStartTime : (slot?.start_time || 0)
                   const displayEndTime = isBeingResized ? tempEndTime : (slot?.end_time || 0)
                   const displaySlot = slot ? { ...slot, start_time: displayStartTime, end_time: displayEndTime } : null
@@ -774,7 +792,27 @@ const PlanningGrid: React.FC = () => {
                           title="Glisser pour étaler sur plusieurs jours"
                         ></div>
                       </div>
-                    ) : !slot ? (
+                    ) : isHorizontalPreview ? (
+                        // Preview horizontal : bloc fantôme
+                        <div 
+                          className="absolute inset-1 rounded p-1 text-xs overflow-hidden z-5 pointer-events-none"
+                          style={{
+                            ...getSlotStyle(resizingSlot.category),
+                            opacity: 0.5,
+                            border: '2px dashed rgba(34, 197, 94, 0.8)',
+                            background: `${getSlotStyle(resizingSlot.category).backgroundColor}80`, // 50% opacity
+                            height: `${getSlotHeight(resizingSlot) * 64 - 8}px`,
+                          }}
+                        >
+                          <div className="font-medium truncate text-green-100">{resizingSlot.title}</div>
+                          <div className="text-xs opacity-75 text-green-200">
+                            {minutesToTime(resizingSlot.start_time)} - {minutesToTime(resizingSlot.end_time)}
+                          </div>
+                          <div className="text-xs opacity-75 text-green-200 animate-pulse">
+                            Preview
+                          </div>
+                        </div>
+                      ) : !slot ? (
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                         <Plus size={16} className="text-gray-400" />
                       </div>
