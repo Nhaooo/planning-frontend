@@ -59,6 +59,19 @@
   top: 4px;
 }
 
+.resize-handle-horizontal::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 1px;
+  box-shadow: 2px 0 0 rgba(0, 0, 0, 0.3);
+}
+
 .resize-handle-bottom {
   bottom: -4px;
 }
@@ -78,6 +91,37 @@
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
   border: 2px solid rgba(59, 130, 246, 0.5);
   transform: scale(1.02);
+}
+
+/* Animation spéciale pour l'étirement horizontal */
+.slot-resizing-horizontal {
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  border: 2px solid rgba(34, 197, 94, 0.5);
+  transform: scale(1.02);
+  position: relative;
+}
+
+.slot-resizing-horizontal::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(34, 197, 94, 0.8), rgba(34, 197, 94, 0.4));
+  animation: pulse-horizontal 1s ease-in-out infinite;
+}
+
+@keyframes pulse-horizontal {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1.5);
+  }
 }
 
 /* Animation subtile au hover */

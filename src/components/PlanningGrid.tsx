@@ -677,6 +677,7 @@ const PlanningGrid: React.FC = () => {
                 const shouldShowSlot = slot && isSlotStart(slot, hour)
                 // Utiliser les temps temporaires pendant l'étirement pour feedback visuel
                   const isBeingResized = slot && resizingSlot?.id === slot.id
+                  const isHorizontalResize = isBeingResized && draggingRef.current?.kind === "resize-horizontal"
                   const displayStartTime = isBeingResized ? tempStartTime : (slot?.start_time || 0)
                   const displayEndTime = isBeingResized ? tempEndTime : (slot?.end_time || 0)
                   const displaySlot = slot ? { ...slot, start_time: displayStartTime, end_time: displayEndTime } : null
@@ -700,7 +701,9 @@ const PlanningGrid: React.FC = () => {
                   >
                     {shouldShowSlot ? (
                       <div 
-                        className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${isBeingResized ? 'slot-resizing' : ''}`}
+                        className={`absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10 cursor-move slot-container ${
+                          isBeingResized ? (isHorizontalResize ? 'slot-resizing-horizontal' : 'slot-resizing') : ''
+                        }`}
                         style={{
                           ...getSlotStyle(slot.category),
                           height: `${slotHeight * 64 - 8}px`, // 64px par cellule - 8px pour les marges
@@ -720,11 +723,16 @@ const PlanningGrid: React.FC = () => {
                         }}
                       >
                         <div className="font-medium truncate">{slot.title}</div>
-                        <div className={`opacity-80 ${isBeingResized ? 'font-bold text-blue-200' : ''}`}>
+                        <div className={`opacity-80 ${isBeingResized ? (isHorizontalResize ? 'font-bold text-green-200' : 'font-bold text-blue-200') : ''}`}>
                           {minutesToTime(displayStartTime)} - {minutesToTime(displayEndTime)}
-                          {isBeingResized && (
+                          {isBeingResized && !isHorizontalResize && (
                             <span className="ml-1 text-blue-100">
                               ({Math.round((displayEndTime - displayStartTime) / 60 * 10) / 10}h)
+                            </span>
+                          )}
+                          {isHorizontalResize && (
+                            <span className="ml-1 text-green-100 animate-pulse">
+                              → Plusieurs jours
                             </span>
                           )}
                         </div>
