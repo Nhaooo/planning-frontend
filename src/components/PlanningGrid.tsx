@@ -266,14 +266,10 @@ const PlanningGrid: React.FC = () => {
         updateSlotMutation.mutate({
           slotId: draggedData.id,
           slotData: {
-            employee_id: Number(selectedEmployeeId),
             date: date,
             day_of_week: dayIndex,
             start_time: startTime,
-            end_time: endTime,
-            title: draggedData.title,
-            category: draggedData.category,
-            comment: draggedData.comment || ''
+            end_time: endTime
           }
         })
       } else {
