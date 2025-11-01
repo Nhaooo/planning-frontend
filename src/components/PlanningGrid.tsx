@@ -236,41 +236,35 @@ const PlanningGrid: React.FC = () => {
         const duration = draggedData.end_time - draggedData.start_time
         const endTime = startTime + duration
         
-        console.log('🎯 Déplacement créneau:', { 
-          draggedData, 
-          dayIndex, 
-          hour, 
-          date, 
-          startTime, 
-          endTime,
-          selectedEmployeeId,
-          employeeIdType: typeof selectedEmployeeId
+        console.log('🎯 Déplacement créneau existant:', { 
+          slotId: draggedData.id,
+          duration,
+          newDate: date,
+          newDayIndex: dayIndex, 
+          newStartTime: startTime, 
+          newEndTime: endTime
         })
         
-        const updateData = {
-          employee_id: Number(selectedEmployeeId),
+        // Vérification des données avant envoi
+        if (!draggedData.id) {
+          console.error('❌ ID du créneau manquant:', draggedData)
+          alert('Erreur: ID du créneau manquant')
+          return
+        }
+        
+        const slotUpdateData = {
           date: date,
           day_of_week: dayIndex,
           start_time: startTime,
-          end_time: endTime,
-          title: draggedData.title,
-          category: draggedData.category,
-          comment: draggedData.comment || ''
+          end_time: endTime
         }
         
-        console.log('📝 Données de mise à jour:', updateData)
+        console.log('📝 Données de mise à jour:', slotUpdateData)
         
         // Mise à jour directe du créneau existant
-        console.log('🔄 Mise à jour directe du créneau...')
-        
         updateSlotMutation.mutate({
           slotId: draggedData.id,
-          slotData: {
-            date: date,
-            day_of_week: dayIndex,
-            start_time: startTime,
-            end_time: endTime
-          }
+          slotData: slotUpdateData
         })
       } else {
         // Création d'un nouveau créneau depuis la palette
