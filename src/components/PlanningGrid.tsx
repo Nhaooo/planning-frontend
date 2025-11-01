@@ -250,7 +250,8 @@ const PlanningGrid: React.FC = () => {
         console.log('🔄 Duplication instantanée puis suppression...')
         
         // D'abord créer le nouveau créneau (duplication instantanée)
-        createSlotMutation.mutate({
+        // On passe l'ID du créneau qu'on déplace pour éviter la détection de chevauchement avec lui-même
+        const createData = {
           employee_id: Number(selectedEmployeeId),
           date: date,
           day_of_week: dayIndex,
@@ -258,8 +259,11 @@ const PlanningGrid: React.FC = () => {
           end_time: endTime,
           title: draggedData.title,
           category: draggedData.category,
-          comment: draggedData.comment || ''
-        }, {
+          comment: draggedData.comment || '',
+          exclude_id: draggedData.id // ID du créneau à ignorer pour le chevauchement
+        }
+        
+        createSlotMutation.mutate(createData, {
           onSuccess: () => {
             console.log('✅ Nouveau créneau créé, suppression de l\'ancien...')
             // Puis supprimer l'ancien créneau

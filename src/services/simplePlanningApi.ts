@@ -67,12 +67,16 @@ export const simplePlanningApi = {
      }
   },
 
-  async createSlot(slotData: SimpleSlotCreate): Promise<SimpleSlot> {
+  async createSlot(slotData: SimpleSlotCreate & { exclude_id?: number }): Promise<SimpleSlot> {
     console.log('➕ Création créneau:', slotData)
     
-    return apiService.request('/planning/slots', {
+    // Extraire exclude_id des données et l'envoyer en query param
+    const { exclude_id, ...bodyData } = slotData
+    const url = exclude_id ? `/planning/slots?exclude_id=${exclude_id}` : '/planning/slots'
+    
+    return apiService.request(url, {
       method: 'POST',
-      body: JSON.stringify(slotData)
+      body: JSON.stringify(bodyData)
     })
   },
 
