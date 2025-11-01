@@ -207,42 +207,102 @@
   }
 }
 
-/* Animation d'étirement en temps réel */
+/* Animation d'étirement vertical en temps réel */
 .slot-resizing {
-  transition: height 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  border: 2px solid rgba(59, 130, 246, 0.5);
-  transform: scale(1.02);
+  transition: height 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  border: 2px solid rgba(59, 130, 246, 0.7);
+  transform: scale(1.03);
+  position: relative;
+  z-index: 50;
+}
+
+.slot-resizing::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent);
+  border-radius: 2px;
+  animation: pulse-vertical 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-vertical {
+  0%, 100% {
+    opacity: 0.5;
+    transform: translateX(-50%) scaleY(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1.5);
+  }
 }
 
 /* Animation spéciale pour l'étirement horizontal */
 .slot-resizing-horizontal {
-  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-  border: 2px solid rgba(34, 197, 94, 0.5);
-  transform: scale(1.02);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  border: 2px solid rgba(34, 197, 94, 0.7);
+  transform: scale(1.03);
   position: relative;
+  z-index: 50;
 }
 
 .slot-resizing-horizontal::after {
   content: '';
   position: absolute;
-  top: 0;
-  right: -2px;
-  width: 2px;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(34, 197, 94, 0.8), rgba(34, 197, 94, 0.4));
-  animation: pulse-horizontal 1s ease-in-out infinite;
+  top: 50%;
+  right: -4px;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(180deg, transparent, rgba(34, 197, 94, 0.8), transparent);
+  border-radius: 2px;
+  animation: pulse-horizontal 1.2s ease-in-out infinite;
 }
 
 @keyframes pulse-horizontal {
   0%, 100% {
-    opacity: 0.4;
-    transform: scaleX(1);
+    opacity: 0.5;
+    transform: translateY(-50%) scaleX(1);
   }
   50% {
     opacity: 1;
-    transform: scaleX(1.5);
+    transform: translateY(-50%) scaleX(1.5);
+  }
+}
+
+/* Indicateur de zone de drop pendant l'étirement */
+.resize-drop-zone {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed rgba(59, 130, 246, 0.4);
+  animation: glow-blue 2s ease-in-out infinite;
+}
+
+.resize-drop-zone-horizontal {
+  background: rgba(34, 197, 94, 0.1);
+  border: 2px dashed rgba(34, 197, 94, 0.4);
+  animation: glow-green 2s ease-in-out infinite;
+}
+
+@keyframes glow-blue {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes glow-green {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.6);
   }
 }
 
@@ -254,6 +314,60 @@
 .slot-container:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Preview pendant l'étirement */
+.resize-preview {
+  position: absolute;
+  pointer-events: none;
+  z-index: 40;
+  border-radius: 8px;
+  opacity: 0.7;
+  animation: preview-pulse 1.5s ease-in-out infinite;
+}
+
+.resize-preview-vertical {
+  border: 2px dashed rgba(59, 130, 246, 0.6);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.resize-preview-horizontal {
+  border: 2px dashed rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+@keyframes preview-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.01);
+  }
+}
+
+/* Indicateur de direction d'étirement */
+.resize-direction-indicator {
+  position: absolute;
+  pointer-events: none;
+  z-index: 60;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  animation: indicator-bounce 1s ease-in-out infinite;
+}
+
+@keyframes indicator-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
 }
 
 @layer base {
