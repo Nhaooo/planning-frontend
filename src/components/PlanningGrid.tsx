@@ -260,36 +260,20 @@ const PlanningGrid: React.FC = () => {
         
         console.log('📝 Données de mise à jour:', updateData)
         
-        // Solution optimisée : créer d'abord (duplication), supprimer après
-        // Effet visuel instantané : le créneau apparaît immédiatement à la nouvelle position
-        console.log('🔄 Duplication instantanée puis suppression...')
+        // Mise à jour directe du créneau existant
+        console.log('🔄 Mise à jour directe du créneau...')
         
-        // D'abord créer le nouveau créneau (duplication instantanée)
-        createSlotMutation.mutate({
-          employee_id: Number(selectedEmployeeId),
-          date: date,
-          day_of_week: dayIndex,
-          start_time: startTime,
-          end_time: endTime,
-          title: draggedData.title,
-          category: draggedData.category,
-          comment: draggedData.comment || ''
-        }, {
-          onSuccess: () => {
-            console.log('✅ Nouveau créneau créé, suppression de l\'ancien...')
-            // Puis supprimer l'ancien créneau avec un petit délai pour l'effet visuel
-            setTimeout(() => {
-              deleteSlotMutation.mutate(draggedData.id, {
-                onError: (error) => {
-                  console.error('❌ Erreur suppression ancien créneau:', error)
-                  // Pas d'alerte ici car le nouveau créneau est déjà créé
-                }
-              })
-            }, 0) // 100ms de délai pour l'effet visuel
-          },
-          onError: (error) => {
-            console.error('❌ Erreur création nouveau créneau:', error)
-            alert('Erreur lors du déplacement du créneau')
+        updateSlotMutation.mutate({
+          slotId: draggedData.id,
+          slotData: {
+            employee_id: Number(selectedEmployeeId),
+            date: date,
+            day_of_week: dayIndex,
+            start_time: startTime,
+            end_time: endTime,
+            title: draggedData.title,
+            category: draggedData.category,
+            comment: draggedData.comment || ''
           }
         })
       } else {
@@ -496,9 +480,7 @@ const PlanningGrid: React.FC = () => {
 
   const handleDeleteSlot = (slotId: number, event: React.MouseEvent) => {
     event.stopPropagation()
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce créneau ?')) {
-      deleteSlotMutation.mutate(slotId)
-    }
+    deleteSlotMutation.mutate(slotId)
   }
 
   const handleSaveSlot = (slotData: any) => {
