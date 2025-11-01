@@ -232,39 +232,48 @@ const PlanningGrid: React.FC = () => {
       console.log('📦 Données draggées:', draggedData)
       
       if (draggedData.isExistingSlot) {
-        // Déplacement d'un créneau existant
+        // Déplacement d'un créneau existant - LOGIQUE QUI MARCHAIT AVANT
         const duration = draggedData.end_time - draggedData.start_time
         const endTime = startTime + duration
         
-        console.log('🎯 Déplacement créneau existant:', { 
-          slotId: draggedData.id,
-          duration,
-          newDate: date,
-          newDayIndex: dayIndex, 
-          newStartTime: startTime, 
-          newEndTime: endTime
+        console.log('🎯 Déplacement créneau:', { 
+          draggedData, 
+          dayIndex, 
+          hour, 
+          date, 
+          startTime, 
+          endTime,
+          selectedEmployeeId
         })
         
-        // Vérification des données avant envoi
-        if (!draggedData.id) {
-          console.error('❌ ID du créneau manquant:', draggedData)
-          alert('Erreur: ID du créneau manquant')
-          return
-        }
+        // Solution qui marchait : créer d'abord (duplication), supprimer après
+        console.log('🔄 Duplication instantanée puis suppression...')
         
-        const slotUpdateData = {
+        // D'abord créer le nouveau créneau (duplication instantanée)
+        createSlotMutation.mutate({
+          employee_id: Number(selectedEmployeeId),
           date: date,
           day_of_week: dayIndex,
           start_time: startTime,
-          end_time: endTime
-        }
-        
-        console.log('📝 Données de mise à jour:', slotUpdateData)
-        
-        // Mise à jour directe du créneau existant
-        updateSlotMutation.mutate({
-          slotId: draggedData.id,
-          slotData: slotUpdateData
+          end_time: endTime,
+          title: draggedData.title,
+          category: draggedData.category,
+          comment: draggedData.comment || ''
+        }, {
+          onSuccess: () => {
+            console.log('✅ Nouveau créneau créé, suppression de l\'ancien...')
+            // Puis supprimer l'ancien créneau
+            deleteSlotMutation.mutate(draggedData.id, {
+              onError: (error) => {
+                console.error('❌ Erreur suppression ancien créneau:', error)
+                // Pas d'alerte ici car le nouveau créneau est déjà créé
+              }
+            })
+          },
+          onError: (error) => {
+            console.error('❌ Erreur création nouveau créneau:', error)
+            alert('Erreur lors du déplacement du créneau')
+          }
         })
       } else {
         // Création d'un nouveau créneau depuis la palette
