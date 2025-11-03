@@ -1,5 +1,5 @@
 import { FC, useState } from 'react'
-import { Calendar, Undo, Redo, Users, Grid3X3, Menu, X, Globe } from 'lucide-react'
+import { Calendar, Undo, Redo, Users, Grid3X3, Menu, X } from 'lucide-react'
 import { usePlanningStore } from '../store/planningStore'
 import { useAuthStore } from '../store/authStore'
 import EmployeeSelector from './EmployeeSelector'
@@ -8,8 +8,8 @@ import SaveIndicator from './SaveIndicator'
 import UserInfo from './UserInfo'
 
 interface HeaderProps {
-  currentView: 'planning' | 'employees' | 'global'
-  onViewChange: (view: 'planning' | 'employees' | 'global') => void
+  currentView: 'planning' | 'employees'
+  onViewChange: (view: 'planning' | 'employees') => void
 }
 
 const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
@@ -53,17 +53,6 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
                   <span>Planning</span>
                 </button>
                 <button
-                  onClick={() => onViewChange('global')}
-                  className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    currentView === 'global'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Globe className="h-4 w-4" />
-                  <span>Global</span>
-                </button>
-                <button
                   onClick={() => onViewChange('employees')}
                   className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                     currentView === 'employees'
@@ -78,9 +67,9 @@ const Header: FC<HeaderProps> = ({ currentView, onViewChange }) => {
             )}
 
             {/* Sélecteurs */}
-            {(currentView === 'planning' || currentView === 'global') && (
+            {currentView === 'planning' && (
               <>
-                {currentView === 'planning' && <EmployeeSelector />}
+                <EmployeeSelector />
                 <WeekSelector />
               </>
             )}

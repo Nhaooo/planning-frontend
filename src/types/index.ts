@@ -118,7 +118,6 @@ export interface PlanningState {
   setCurrentWeek: (week: WeekResponse | undefined) => void
   setLegend: (legend: CategoryLegend) => void
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void
-  refreshWeek: () => Promise<void>
   
   // Undo/Redo
   pushToUndoStack: (state: any) => void
