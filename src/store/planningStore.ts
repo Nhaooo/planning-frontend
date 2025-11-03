@@ -62,6 +62,20 @@ export const usePlanningStore = create<PlanningState>()(
           }, 3000)
         }
       },
+
+      refreshWeek: async () => {
+        const { currentWeek } = get()
+        if (!currentWeek?.week?.id) return
+        
+        try {
+          // Importer dynamiquement le service API pour éviter les dépendances circulaires
+          const { weekService } = await import('../services/api')
+          const refreshedWeek = await weekService.getWeekById(currentWeek.week.id)
+          set({ currentWeek: refreshedWeek })
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement de la semaine:', error)
+        }
+      },
       
       // Gestion Undo/Redo
       pushToUndoStack: (state: any) => {

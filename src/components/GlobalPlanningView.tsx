@@ -4,8 +4,25 @@ import { usePlanningStore } from '../store/planningStore'
 import { simplePlanningApi, SimpleSlot } from '../services/simplePlanningApi'
 import { employeeService } from '../services/api'
 import { Employee } from '../types'
-import { getSlotStyle } from '../utils/categoryColors'
 import LoadingSpinner from './LoadingSpinner'
+
+// Couleurs distinctes pour chaque employé
+const EMPLOYEE_COLORS = [
+  { bg: 'bg-blue-500', border: 'border-blue-600', text: 'text-white' },
+  { bg: 'bg-green-500', border: 'border-green-600', text: 'text-white' },
+  { bg: 'bg-purple-500', border: 'border-purple-600', text: 'text-white' },
+  { bg: 'bg-red-500', border: 'border-red-600', text: 'text-white' },
+  { bg: 'bg-yellow-500', border: 'border-yellow-600', text: 'text-black' },
+  { bg: 'bg-indigo-500', border: 'border-indigo-600', text: 'text-white' },
+  { bg: 'bg-pink-500', border: 'border-pink-600', text: 'text-white' },
+  { bg: 'bg-teal-500', border: 'border-teal-600', text: 'text-white' },
+  { bg: 'bg-orange-500', border: 'border-orange-600', text: 'text-white' },
+  { bg: 'bg-cyan-500', border: 'border-cyan-600', text: 'text-white' },
+]
+
+const getEmployeeColor = (employeeId: number) => {
+  return EMPLOYEE_COLORS[employeeId % EMPLOYEE_COLORS.length]
+}
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 const HOURS = Array.from({ length: 14 }, (_, i) => 7 + i) // 7h à 20h
@@ -93,11 +110,14 @@ const GlobalPlanningView: React.FC = () => {
     enabled: employees && visibleEmployees.size > 0
   })
 
-// Organiser les créneaux par jour et heure
+// Organiser les créneaux par jour et heure avec gestion anti-superposition
   const slotsByDayHour = useMemo(() => {
     if (!employeeQueries.data) return {}
     
-    const organized: { [key: string]: (SimpleSlot & { employeeName: string; employeeId: number })[] } = {}
+    const organized: { [key: string]: (SimpleSlot & { employeeName: string; employeeId: number; columnIndex: number })[] } = {}
+    
+    // D'abord, collecter tous les créneaux par jour
+    const slotsByDay: { [dayIndex: number]: (SimpleSlot & { employeeName: string; employeeId: number })[] } = {}
     
     employeeQueries.data.forEach(({ employee, slots }) => {
       if (!employee) return
@@ -108,24 +128,73 @@ const GlobalPlanningView: React.FC = () => {
         const dayIndex = Math.floor((slotDate.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24))
         
         if (dayIndex >= 0 && dayIndex < 7) {
+          if (!slotsByDay[dayIndex]) slotsByDay[dayIndex] = []
+          
+          const enrichedSlot = {
+            ...slot,
+            employeeName: employee.fullname,
+            employeeId: employee.id
+          }
+          slotsByDay[dayIndex].push(enrichedSlot)
+        }
+      })
+    })
+    
+    // Ensuite, organiser par heure avec colonnes pour éviter la superposition
+    Object.entries(slotsByDay).forEach(([dayIndex, daySlots]) => {
+      const day = parseInt(dayIndex)
+      
+      // Trier les créneaux par heure de début
+      const sortedSlots = daySlots.sort((a, b) => a.start_time - b.start_time)
+      
+      // Assigner des colonnes pour éviter les chevauchements
+      const columns: (SimpleSlot & { employeeName: string; employeeId: number })[][] = []
+      
+      sortedSlots.forEach(slot => {
+        // Trouver la première colonne disponible
+        let columnIndex = 0
+        let placed = false
+        
+        while (!placed) {
+          if (!columns[columnIndex]) {
+            columns[columnIndex] = []
+          }
+          
+          // Vérifier si ce créneau chevauche avec le dernier de cette colonne
+          const lastSlotInColumn = columns[columnIndex][columns[columnIndex].length - 1]
+          
+          if (!lastSlotInColumn || lastSlotInColumn.end_time <= slot.start_time) {
+            columns[columnIndex].push(slot)
+            placed = true
+          } else {
+            columnIndex++
+          }
+        }
+      })
+      
+      // Maintenant, organiser par heure avec les colonnes
+      columns.forEach((column, colIndex) => {
+        column.forEach(slot => {
           const startHour = Math.floor(slot.start_time / 60)
           const endHour = Math.ceil(slot.end_time / 60)
           
           for (let hour = startHour; hour < endHour; hour++) {
             if (hour >= 7 && hour < 21) {
-              const key = `${dayIndex}-${hour}`
+              const key = `${day}-${hour}`
               if (!organized[key]) organized[key] = []
               
-              // Ajouter les infos employé au slot
-              const enrichedSlot = {
+              const slotWithColumn = {
                 ...slot,
-                employeeName: employee.fullname,
-                employeeId: employee.id
+                columnIndex: colIndex
               }
-              organized[key].push(enrichedSlot)
+              
+              // Ajouter seulement à l'heure de début pour éviter les doublons
+              if (hour === startHour) {
+                organized[key].push(slotWithColumn)
+              }
             }
           }
-        }
+        })
       })
     })
     
@@ -232,21 +301,25 @@ const GlobalPlanningView: React.FC = () => {
                         const heightInCells = Math.ceil(duration / 60)
                         const height = heightInCells * 64 - 8 // 64px par cellule - 8px pour les marges
                         
+                        const employeeColor = getEmployeeColor(slot.employeeId)
+                        const columnWidth = 100 / Math.max(3, slots.length) // Largeur adaptative
+                        const leftOffset = slot.columnIndex * columnWidth
+                        
                         return (
                           <div
                             key={`${slot.id}-${slotIndex}`}
-                            className="absolute inset-1 text-white rounded p-1 text-xs overflow-hidden z-10"
+                            className={`absolute rounded p-1 text-xs overflow-hidden border-2 ${employeeColor.bg} ${employeeColor.border} ${employeeColor.text}`}
                             style={{
-                              ...getSlotStyle(slot.category),
                               height: `${height}px`,
                               minHeight: '56px',
-                              left: `${slotIndex * 2}px`, // Décalage pour éviter la superposition
-                              right: `${slotIndex * 2}px`,
-                              zIndex: 10 + slotIndex
+                              left: `${leftOffset}%`,
+                              width: `${columnWidth - 2}%`, // -2% pour l'espacement
+                              top: '4px',
+                              zIndex: 10 + slot.columnIndex
                             }}
                             title={`${slot.employeeName} - ${slot.title} (${minutesToTime(slot.start_time)} - ${minutesToTime(slot.end_time)})`}
                           >
-                            <div className="font-medium text-xs truncate">
+                            <div className="font-bold text-xs truncate">
                               {slot.employeeName}
                             </div>
                             <div className="text-xs opacity-90 truncate">

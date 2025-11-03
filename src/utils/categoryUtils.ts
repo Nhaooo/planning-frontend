@@ -4,14 +4,14 @@ import { CategoryCode, CategoryLegend, CategoryRepartition } from '../types'
  * Légende par défaut des catégories
  */
 export const DEFAULT_CATEGORY_LEGEND: CategoryLegend = {
-  a: { label: 'Administratif/gestion', color: '#49B675' },
-  p: { label: 'Prestation/événement', color: '#40E0D0' },
-  e: { label: 'École d\'escalade', color: '#A280FF' },
-  c: { label: 'Groupes compétition', color: '#FF007F' },
-  o: { label: 'Ouverture', color: '#FF2D2D' },
-  l: { label: 'Loisir', color: '#FFD166' },
-  m: { label: 'Mise en place / Rangement', color: '#FF9B54' },
-  s: { label: 'Santé Adulte/Enfant', color: '#FF8C42' },
+  administratif: { label: 'Administratif/gestion', color: '#49B675' },
+  prestation: { label: 'Prestation/événement', color: '#40E0D0' },
+  ecole: { label: 'École d\'escalade', color: '#A280FF' },
+  competition: { label: 'Groupes compétition', color: '#FF007F' },
+  ouverture: { label: 'Ouverture', color: '#FF2D2D' },
+  loisir: { label: 'Loisir', color: '#FFD166' },
+  mise_en_place: { label: 'Mise en place / Rangement', color: '#FF9B54' },
+  sante: { label: 'Santé Adulte/Enfant', color: '#FF8C42' },
 }
 
 /**
@@ -45,7 +45,7 @@ export const getCategoryLabel = (
  * Vérifie si un code de catégorie est valide
  */
 export const isValidCategory = (category: string): category is CategoryCode => {
-  return ['a', 'p', 'e', 'c', 'o', 'l', 'm', 's'].includes(category)
+  return ['administratif', 'prestation', 'ecole', 'competition', 'ouverture', 'loisir', 'mise_en_place', 'sante'].includes(category)
 }
 
 /**
@@ -68,18 +68,27 @@ export const calculateRepartitionPercentages = (
   const total = Object.values(repartition).reduce((sum, value) => sum + value, 0)
   
   if (total === 0) {
-    return { a: 0, p: 0, e: 0, c: 0, o: 0, l: 0, m: 0, s: 0 }
+    return { 
+      administratif: 0, 
+      prestation: 0, 
+      ecole: 0, 
+      competition: 0, 
+      ouverture: 0, 
+      loisir: 0, 
+      mise_en_place: 0, 
+      sante: 0 
+    }
   }
   
   return {
-    a: (repartition.a / total) * 100,
-    p: (repartition.p / total) * 100,
-    e: (repartition.e / total) * 100,
-    c: (repartition.c / total) * 100,
-    o: (repartition.o / total) * 100,
-    l: (repartition.l / total) * 100,
-    m: (repartition.m / total) * 100,
-    s: (repartition.s / total) * 100,
+    administratif: (repartition.administratif / total) * 100,
+    prestation: (repartition.prestation / total) * 100,
+    ecole: (repartition.ecole / total) * 100,
+    competition: (repartition.competition / total) * 100,
+    ouverture: (repartition.ouverture / total) * 100,
+    loisir: (repartition.loisir / total) * 100,
+    mise_en_place: (repartition.mise_en_place / total) * 100,
+    sante: (repartition.sante / total) * 100,
   }
 }
 
