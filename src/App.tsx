@@ -7,6 +7,7 @@ import LoadingSpinner from './components/LoadingSpinner'
 import ServerWakeupBanner from './components/ServerWakeupBanner'
 import LoginModal from './components/LoginModal'
 import EmployeeManagement from './components/EmployeeManagement'
+import GlobalPlanningView from './components/GlobalPlanningView'
 import ProtectedRoute from './components/ProtectedRoute'
 import ApiDiagnostic from './components/ApiDiagnostic'
 import { usePlanningStore } from './store/planningStore'
@@ -18,7 +19,7 @@ import './App.css'
 function App() {
   const [showWakeupBanner, setShowWakeupBanner] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
-  const [currentView, setCurrentView] = useState<'planning' | 'employees'>('planning')
+  const [currentView, setCurrentView] = useState<'planning' | 'employees' | 'global'>('planning')
   
   const { selectedEmployeeId, setEmployees } = usePlanningStore()
   const { isAuthenticated, user, isAdmin } = useAuthStore()
@@ -120,6 +121,13 @@ function App() {
         {currentView === 'employees' && (
           <ProtectedRoute requireAdmin={true}>
             <EmployeeManagement />
+          </ProtectedRoute>
+        )}
+
+        {/* Vue Planning Global (Admin seulement) */}
+        {currentView === 'global' && (
+          <ProtectedRoute requireAdmin={true}>
+            <GlobalPlanningView />
           </ProtectedRoute>
         )}
 
