@@ -43,14 +43,14 @@ export interface WeekTotals {
 }
 
 export interface CategoryRepartition {
-  administratif: number // Administratif/gestion
-  prestation: number // Prestation/événement
-  ecole: number // École d'escalade
-  competition: number // Groupes compétition
-  ouverture: number // Ouverture
-  loisir: number // Loisir
-  mise_en_place: number // Mise en place / Rangement
-  sante: number // Santé Adulte/Enfant
+  a: number // Administratif/gestion
+  p: number // Prestation/événement
+  e: number // École d'escalade
+  c: number // Groupes compétition
+  o: number // Ouverture
+  l: number // Loisir
+  m: number // Mise en place / Rangement
+  s: number // Santé Adulte/Enfant
 }
 
 export interface WeekResponse {
@@ -61,7 +61,7 @@ export interface WeekResponse {
   repartition: CategoryRepartition
 }
 
-export type CategoryCode = 'administratif' | 'prestation' | 'ecole' | 'competition' | 'ouverture' | 'loisir' | 'mise_en_place' | 'sante'
+export type CategoryCode = 'a' | 'p' | 'e' | 'c' | 'o' | 'l' | 'm' | 's'
 
 export interface CategoryLegend {
   [key: string]: {

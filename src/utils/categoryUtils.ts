@@ -4,14 +4,14 @@ import { CategoryCode, CategoryLegend, CategoryRepartition } from '../types'
  * Légende par défaut des catégories
  */
 export const DEFAULT_CATEGORY_LEGEND: CategoryLegend = {
-  administratif: { label: 'Administratif/gestion', color: '#49B675' },
-  prestation: { label: 'Prestation/événement', color: '#40E0D0' },
-  ecole: { label: 'École d\'escalade', color: '#A280FF' },
-  competition: { label: 'Groupes compétition', color: '#FF007F' },
-  ouverture: { label: 'Ouverture', color: '#FF2D2D' },
-  loisir: { label: 'Loisir', color: '#FFD166' },
-  mise_en_place: { label: 'Mise en place / Rangement', color: '#FF9B54' },
-  sante: { label: 'Santé Adulte/Enfant', color: '#FF8C42' },
+  a: { label: 'Administratif/gestion', color: '#49B675' },
+  p: { label: 'Prestation/événement', color: '#40E0D0' },
+  e: { label: 'École d\'escalade', color: '#A280FF' },
+  c: { label: 'Groupes compétition', color: '#FF007F' },
+  o: { label: 'Ouverture', color: '#FF2D2D' },
+  l: { label: 'Loisir', color: '#FFD166' },
+  m: { label: 'Mise en place / Rangement', color: '#FF9B54' },
+  s: { label: 'Santé Adulte/Enfant', color: '#FF8C42' },
 }
 
 /**
@@ -45,7 +45,7 @@ export const getCategoryLabel = (
  * Vérifie si un code de catégorie est valide
  */
 export const isValidCategory = (category: string): category is CategoryCode => {
-  return ['administratif', 'prestation', 'ecole', 'competition', 'ouverture', 'loisir', 'mise_en_place', 'sante'].includes(category)
+  return ['a', 'p', 'e', 'c', 'o', 'l', 'm', 's'].includes(category)
 }
 
 /**

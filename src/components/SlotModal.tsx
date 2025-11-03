@@ -42,7 +42,7 @@ const SlotModal: React.FC<SlotModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<SlotFormData>({
     title: '',
-    category: 'administratif',
+    category: 'a',
     comment: '',
     startTime: defaultStartTime || '09:00',
     endTime: '10:00'
@@ -63,7 +63,7 @@ const SlotModal: React.FC<SlotModalProps> = ({
       // Mode création
       setFormData({
         title: '',
-        category: 'administratif',
+        category: 'a',
         comment: '',
         startTime: defaultStartTime || '09:00',
         endTime: '10:00'

@@ -1,48 +1,48 @@
 // Couleurs des catégories de créneaux
 export const CATEGORY_COLORS = {
-  administratif: {
+  a: {
     name: 'Administratif/gestion',
     color: '#49B675',
     bgLight: '#E8F5E8',
     textLight: '#2D5A3D'
   },
-  prestation: {
+  p: {
     name: 'Prestation/événement',
     color: '#40E0D0',
     bgLight: '#E0F9F6',
     textLight: '#1A5A54'
   },
-  ecole: {
+  e: {
     name: 'École d\'escalade',
     color: '#A280FF',
     bgLight: '#F0EBFF',
     textLight: '#4A2C7A'
   },
-  competition: {
+  c: {
     name: 'Groupes compétition',
     color: '#FF007F',
     bgLight: '#FFE0F0',
     textLight: '#7A0040'
   },
-  ouverture: {
+  o: {
     name: 'Ouverture',
     color: '#FF2D2D',
     bgLight: '#FFE6E6',
     textLight: '#7A1515'
   },
-  loisir: {
+  l: {
     name: 'Loisir',
     color: '#FFD166',
     bgLight: '#FFF8E6',
     textLight: '#7A6B2D'
   },
-  mise_en_place: {
+  m: {
     name: 'Mise en place / Rangement',
     color: '#FF9B54',
     bgLight: '#FFF0E6',
     textLight: '#7A4A26'
   },
-  sante: {
+  s: {
     name: 'Santé Adulte/Enfant',
     color: '#FF8C42',
     bgLight: '#FFEDE6',

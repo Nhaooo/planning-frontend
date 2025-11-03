@@ -13,56 +13,56 @@ const BLOCK_TEMPLATES: BlockTemplate[] = [
   {
     id: 'admin-1h',
     title: 'Administratif',
-    category: 'administratif',
+    category: 'a',
     defaultDuration: 60,
     description: 'Tâches administratives'
   },
   {
     id: 'prestation-1h',
     title: 'Prestation',
-    category: 'prestation',
+    category: 'p',
     defaultDuration: 60,
     description: 'Événement/prestation'
   },
   {
     id: 'ecole-1h',
     title: 'École escalade',
-    category: 'ecole',
+    category: 'e',
     defaultDuration: 60,
     description: 'Cours d\'escalade'
   },
   {
     id: 'competition-1h',
     title: 'Compétition',
-    category: 'competition',
+    category: 'c',
     defaultDuration: 60,
     description: 'Entraînement compétition'
   },
   {
     id: 'ouverture-1h',
     title: 'Ouverture',
-    category: 'ouverture',
+    category: 'o',
     defaultDuration: 60,
     description: 'Ouverture salle'
   },
   {
     id: 'loisir-1h',
     title: 'Loisir',
-    category: 'loisir',
+    category: 'l',
     defaultDuration: 60,
     description: 'Activité loisir'
   },
   {
     id: 'rangement-1h',
     title: 'Rangement',
-    category: 'mise_en_place',
+    category: 'm',
     defaultDuration: 60,
     description: 'Mise en place/rangement'
   },
   {
     id: 'sante-1h',
     title: 'Santé',
-    category: 'sante',
+    category: 's',
     defaultDuration: 60,
     description: 'Santé adulte/enfant'
   }
